@@ -34,9 +34,10 @@ const KotaklemaLogo = () => (
 );
 
 // --- WhatsApp Icon ---
-const WhatsAppIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 4.315 1.731 6.086l.001.004 1.443 2.542-1.575 5.45z" /></svg>
-);
+// FIX: Komponen ini tidak lagi digunakan, jadi dikomentari untuk memperbaiki error build.
+// const WhatsAppIcon = () => (
+//     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 4.315 1.731 6.086l.001.004 1.443 2.542-1.575 5.45z" /></svg>
+// );
 
 // RE-ADD: Mengaktifkan kembali template pesan.
 const messageTemplates = {
@@ -396,23 +397,8 @@ function NotificationModal({ isOpen, onClose, data }) {
     const [finalTemplate, setFinalTemplate] = useState(null);
     const [copySuccess, setCopySuccess] = useState('');
 
-    useEffect(() => {
-        // Reset view saat modal dibuka atau data berubah
-        if (isOpen) {
-            // REVISI: Karena hanya ada 1 template, langsung jalankan aksinya.
-            if (data.templates.length === 1 && data.templates[0].id === 'cf1') {
-                handleInitialAction(data.templates[0]);
-            } else {
-                setView('list');
-            }
-            setFinalTemplate(null);
-            setCopySuccess('');
-        }
-    }, [isOpen, data.templates]);
-
-    if (!isOpen || !data.person) return null;
-
-    const handleInitialAction = (template) => {
+    // FIX: Wrap handleInitialAction in useCallback to stabilize it for the useEffect dependency array.
+    const handleInitialAction = useCallback((template) => {
         // Jika template minta konfirmasi, ubah view
         if (template.id === 'cf1') {
             // Buka WhatsApp dengan pesan awal
@@ -433,7 +419,23 @@ function NotificationModal({ isOpen, onClose, data }) {
             }
             onClose();
         }
-    };
+    }, [data.person, data.updateQueue, onClose]);
+
+    useEffect(() => {
+        // Reset view saat modal dibuka atau data berubah
+        if (isOpen) {
+            // REVISI: Karena hanya ada 1 template, langsung jalankan aksinya.
+            if (data.templates.length === 1 && data.templates[0].id === 'cf1') {
+                handleInitialAction(data.templates[0]);
+            } else {
+                setView('list');
+            }
+            setFinalTemplate(null);
+            setCopySuccess('');
+        }
+    }, [isOpen, data.templates, handleInitialAction]); // FIX: Added missing dependency.
+
+    if (!isOpen || !data.person) return null;
 
     const handleConfirmAction = (replyType) => {
         const template = replyType === 'yes' ? messageTemplates.reply_yes : messageTemplates.reply_no;
