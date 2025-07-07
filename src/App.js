@@ -398,7 +398,7 @@ function NotificationModal({ isOpen, onClose, data }) {
     const [copySuccess, setCopySuccess] = useState('');
 
     // FIX: Wrap handleInitialAction in useCallback to stabilize it for the useEffect dependency array.
-    const handleInitialAction = useCallback((template) => {
+    const handleInitialAction = useCallback(() => {
         // Jika template minta konfirmasi, ubah view
         if (template.id === 'cf1') {
             // Buka WhatsApp dengan pesan awal
@@ -419,7 +419,7 @@ function NotificationModal({ isOpen, onClose, data }) {
             }
             onClose();
         }
-    }, [data.person, data.updateQueue, onClose]);
+    }, [data]);
 
     useEffect(() => {
         // Reset view saat modal dibuka atau data berubah
