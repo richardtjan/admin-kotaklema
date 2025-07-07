@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, ThumbsUp, ThumbsDown, GripVertical, Trash2 } from 'lucide-react';
+// RE-ADD: Menambahkan kembali ikon 'Phone' untuk tombol notifikasi.
+import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2 } from 'lucide-react';
 
 // --- Constants ---
 const TURN_DURATION_MINUTES = 7;
 const TURN_DURATION_MS = TURN_DURATION_MINUTES * 60 * 1000;
+// RE-ADD: Mengaktifkan kembali variabel untuk timer respon.
 const RESPONSE_WAIT_MS = 3 * 60 * 1000; // 3 minutes for response
 
 // --- Custom SVG Logo (Comic Style) ---
@@ -36,14 +38,13 @@ const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 4.315 1.731 6.086l.001.004 1.443 2.542-1.575 5.45z" /></svg>
 );
 
-// --- Message Templates with Status Logic ---
+// RE-ADD: Mengaktifkan kembali template pesan.
 const messageTemplates = {
     initial: [
-        { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. 😊\n\nMakasih banyak atas pengertiannya, Kak! 🙏`, updatesStatusTo: 'notified' },
-        { id: 'fc1', title: 'Giliran Dimajukan', text: `Hai Kak [NAME], ada kabar baik nih! 😊\n\nKebetulan ada slot yang kosong, jadi giliran Kakak bisa kami majukan SEKARANG.\n\nBoleh langsung ke BOOTH KOTAKLEMA ya. Ditunggu kedatangannya, Kak! ✨` },
-        { id: 'sn1', title: 'Info Giliran Terlewat', text: "Halo Kak [NAME], terima kasih atas konfirmasinya.\nKarena Kakak belum hadir saat giliran tiba tadi, kami sudah mempersilakan pelanggan berikutnya untuk menjaga alur antrian.\nTapi jangan khawatir, giliran Kakak tidak hangus. Kakak akan kami layani di urutan berikutnya yang tersedia. Mohon ditunggu sebentar ya. Terima kasih atas pengertiannya. 🙏" }
+        // REVISI: Hanya template "Minta Konfirmasi" yang disimpan.
+        { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. 😊\n\nMakasih banyak atas pengertiannya, Kak! 🙏`, updatesStatusTo: 'notified' }
     ],
-    reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Kami tunggu kedatangannya di [LOKASI].`, updatesStatusTo: 'confirmed' },
+    reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Kami tunggu kedatangannya di Photobooth.`, updatesStatusTo: 'confirmed' },
     reply_no: { id: 'resp_no', title: 'Balasan untuk "TIDAK"', text: `Baik, Kak [NAME], terima kasih informasinya. Kami akan memberitahu Anda kembali jika sudah ada giliran yang tersedia.`, updatesStatusTo: 'waiting' }
 };
 
@@ -53,7 +54,7 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalData, setModalData] = useState({ person: null, templates: [], updateStatus: null, actionType: 'whatsapp' });
+    const [modalData, setModalData] = useState({ person: null, templates: [], updateStatus: null });
 
     const fetchQueue = useCallback(async () => {
         setError(null);
@@ -63,7 +64,13 @@ export default function App() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            setQueue(data);
+            // NEW: Memastikan setiap item memiliki properti yang dibutuhkan
+            const processedData = data.map(p => ({
+                ...p,
+                status: p.status || 'waiting',
+                notifiedTimestamp: p.notifiedTimestamp || null
+            }));
+            setQueue(processedData);
         } catch (e) {
             console.error("Fetch Queue Error:", e);
             setError("Gagal memuat antrian dari Google Sheets.");
@@ -74,34 +81,33 @@ export default function App() {
 
     useEffect(() => {
         fetchQueue();
-         // Tambahkan polling untuk refresh data setiap 15 detik
         const intervalId = setInterval(fetchQueue, 15000);
         return () => clearInterval(intervalId);
     }, [fetchQueue]);
 
-    const handleUpdateStatus = useCallback(async (personId, newStatus) => {
+    // MODIFIED: Fungsi update sekarang juga bisa menangani timestamp notifikasi
+    const handleUpdateQueue = useCallback(async (action, payload) => {
         try {
             await fetch('/api/updateQueue', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'update', payload: { id: personId, newStatus } }),
+                body: JSON.stringify({ action, payload }),
             });
-            fetchQueue(); // Refresh data setelah update
+            await fetchQueue(); // Selalu refresh data setelah update
         } catch (error) {
-            console.error("Error updating status:", error);
-            setError("Gagal memperbarui status.");
+            console.error(`Error performing action ${action}:`, error);
+            setError(`Gagal melakukan aksi: ${action}.`);
         }
     }, [fetchQueue]);
 
-    const handleOpenModal = useCallback((person, templates, actionType = 'whatsapp') => {
+    const handleOpenModal = useCallback((person, templates) => {
         setModalData({
             person,
             templates: Array.isArray(templates) ? templates : [templates],
-            updateStatus: handleUpdateStatus,
-            actionType: actionType
+            updateQueue: handleUpdateQueue,
         });
         setIsModalOpen(true);
-    }, [handleUpdateStatus]);
+    }, [handleUpdateQueue]);
 
     const nowServing = queue.length > 0 ? queue[0] : null;
     const upNext = queue.length > 1 ? queue.slice(1) : [];
@@ -129,7 +135,7 @@ export default function App() {
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                         <div className="lg:col-span-2"><JoinQueueForm queue={queue} onQueueUpdate={fetchQueue} /></div>
-                        <div className="lg:col-span-3"><QueueDisplay nowServing={nowServing} upNext={upNext} onQueueUpdate={fetchQueue} onOpenModal={handleOpenModal} /></div>
+                        <div className="lg:col-span-3"><QueueDisplay nowServing={nowServing} upNext={upNext} onUpdateQueue={handleUpdateQueue} onOpenModal={handleOpenModal} /></div>
                     </div>
                 )}
             </div>
@@ -138,7 +144,7 @@ export default function App() {
     );
 }
 
-// --- Join Queue Form ---
+// --- Join Queue Form --- (No changes)
 function JoinQueueForm({ queue, onQueueUpdate }) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -171,7 +177,7 @@ function JoinQueueForm({ queue, onQueueUpdate }) {
             
             setSubmitStatus({ type: 'success', message: `${name.trim()} berhasil ditambahkan.` });
             setName(''); setPhone('');
-            onQueueUpdate(); // Panggil fungsi untuk refresh data
+            onQueueUpdate();
         } catch (error) {
             console.error("Error adding to queue: ", error);
             setSubmitStatus({ type: 'error', message: error.message });
@@ -203,7 +209,8 @@ function JoinQueueForm({ queue, onQueueUpdate }) {
 }
 
 // --- Queue Display and Controls ---
-function QueueDisplay({ nowServing, upNext, onQueueUpdate, onOpenModal }) {
+// MODIFIED: Props diubah untuk menangani logika baru
+function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
     const [timerState, setTimerState] = useState('idle');
     const [draggedItem, setDraggedItem] = useState(null);
@@ -228,46 +235,22 @@ function QueueDisplay({ nowServing, upNext, onQueueUpdate, onOpenModal }) {
     const handleStart = () => { if (timeLeft > 0) setTimerState('running'); };
     const handlePause = () => setTimerState('paused');
     
-    const handleFinish = async () => {
+    const handleFinish = () => {
         if (!nowServing) return;
-        await fetch('/api/updateQueue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete', payload: { id: nowServing.id } }),
-        });
-        onQueueUpdate();
+        onUpdateQueue('delete', { id: nowServing.id });
     };
 
-    const handleFinishAndServe = async (personToServe) => {
+    const handleFinishAndServe = (personToServe) => {
         if (!personToServe) return;
-        
-        // Hapus yang sedang dilayani (jika ada)
         if (nowServing) {
-            await fetch('/api/updateQueue', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'delete', payload: { id: nowServing.id } }),
-            });
+            onUpdateQueue('delete', { id: nowServing.id });
         }
-        
-        // Jadikan orang berikutnya sebagai yang pertama dengan order lebih kecil
-        await fetch('/api/updateQueue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'update', payload: { id: personToServe.id, newOrder: nowServing ? nowServing.order - 1 : Date.now() - 1000 } }),
-        });
-        
-        onQueueUpdate();
+        onUpdateQueue('update', { id: personToServe.id, newOrder: nowServing ? nowServing.order - 1 : Date.now() - 1000 });
     };
 
-    const handleDelete = async (personId) => {
+    const handleDelete = (personId) => {
         if (!personId) return;
-        await fetch('/api/updateQueue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete', payload: { id: personId } }),
-        });
-        onQueueUpdate();
+        onUpdateQueue('delete', { id: personId });
     };
 
     const handleDragEnd = async () => {
@@ -276,27 +259,21 @@ function QueueDisplay({ nowServing, upNext, onQueueUpdate, onOpenModal }) {
             setDropTargetId(null);
             return;
         }
-
         const targetItem = upNext.find(item => item.id === dropTargetId);
         const targetIndex = upNext.indexOf(targetItem);
         const prevItem = upNext[targetIndex - 1];
         const newOrder = prevItem ? (prevItem.order + targetItem.order) / 2 : targetItem.order / 2;
-
-        await fetch('/api/updateQueue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'update', payload: { id: draggedItem.id, newOrder } }),
-        });
-        
-        onQueueUpdate();
+        onUpdateQueue('update', { id: draggedItem.id, newOrder });
         setDraggedItem(null);
         setDropTargetId(null);
     };
 
-    const getStatusIndicator = (status) => {
+    const getStatusIndicator = (status, notifiedTimestamp) => {
         switch (status) {
             case 'confirmed':
                 return <span className="flex items-center gap-1 text-xs text-green-600 font-sans"><CheckCircle size={14}/> DIKONFIRMASI</span>;
+            case 'notified':
+                return <ResponseTimer notifiedTimestamp={notifiedTimestamp} />;
             default:
                 return null;
         }
@@ -331,29 +308,28 @@ function QueueDisplay({ nowServing, upNext, onQueueUpdate, onOpenModal }) {
                                     {dropTargetId === person.id && <div className="h-1.5 my-1 bg-yellow-400 rounded-full" />}
                                     <li 
                                         data-id={person.id}
-                                        className={`bg-white p-4 rounded-lg cursor-grab transition-all duration-300 border-2 border-black ${draggedItem?.id === person.id ? 'opacity-30' : ''}`}
-                                        draggable
-                                        onDragStart={() => setDraggedItem(person)}
-                                        onDragEnd={handleDragEnd}
-                                        onDragEnter={() => setDropTargetId(person.id)}
-                                        onDragLeave={() => setDropTargetId(null)}
+                                        className={`bg-white p-4 rounded-lg transition-all duration-300 border-2 border-black ${draggedItem?.id === person.id ? 'opacity-30' : ''}`}
+                                        draggable onDragStart={() => setDraggedItem(person)} onDragEnd={handleDragEnd}
+                                        onDragEnter={() => setDropTargetId(person.id)} onDragLeave={() => setDropTargetId(null)}
                                         onDragOver={(e) => e.preventDefault()}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center">
+                                            <div className="flex items-center cursor-grab">
                                                 <GripVertical className="text-gray-400 mr-3" />
                                                 <span className="text-2xl font-bold text-zinc-800">{person.name}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button onClick={() => handleDelete(person.id)} className="p-2 text-white bg-red-600 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Trash2 size={14} /></button>
+                                                {/* NEW: Tombol panggil/notifikasi */}
+                                                <button onClick={() => onOpenModal(person, messageTemplates.initial)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Phone size={14} /></button>
                                                 <button onClick={() => handleFinishAndServe(person)} className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all">
                                                     <ChevronsRight size={14} /> LANJUT
                                                 </button>
                                             </div>
                                         </div>
                                         <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300 flex items-center justify-between min-h-[34px]">
-                                            {/* Logika status notifikasi bisa ditambahkan kembali di sini jika diperlukan */}
-                                            {getStatusIndicator(person.status)}
+                                            {/* MODIFIED: Tampilan status sekarang bisa menampilkan timer */}
+                                            {getStatusIndicator(person.status, person.notifiedTimestamp)}
                                         </div>
                                     </li>
                                 </React.Fragment>
@@ -368,7 +344,7 @@ function QueueDisplay({ nowServing, upNext, onQueueUpdate, onOpenModal }) {
     );
 }
 
-// --- Timer Components (No changes needed) ---
+// --- Timer Components ---
 function TimerDisplay({ timeLeft }) {
     const minutes = Math.floor((timeLeft / 1000) / 60);
     const seconds = Math.floor((timeLeft / 1000) % 60);
@@ -380,41 +356,132 @@ function TimerDisplay({ timeLeft }) {
     );
 }
 
-// --- Notification Modal (No significant changes needed, logic stays on client) ---
+// NEW: Komponen untuk timer respon 3 menit
+function ResponseTimer({ notifiedTimestamp }) {
+    const [timeLeft, setTimeLeft] = useState(RESPONSE_WAIT_MS);
+
+    useEffect(() => {
+        const calculateTimeLeft = () => {
+            const elapsed = Date.now() - notifiedTimestamp;
+            return Math.max(0, RESPONSE_WAIT_MS - elapsed);
+        };
+        
+        setTimeLeft(calculateTimeLeft());
+
+        const interval = setInterval(() => {
+            setTimeLeft(calculateTimeLeft());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [notifiedTimestamp]);
+
+    const minutes = Math.floor((timeLeft / 1000) / 60);
+    const seconds = Math.floor((timeLeft / 1000) % 60);
+
+    if (timeLeft <= 0) {
+        return <span className="flex items-center gap-1 text-xs text-red-600 font-sans"><AlertCircle size={14}/> WAKTU HABIS</span>;
+    }
+
+    return (
+        <span className="flex items-center gap-1 text-xs text-blue-600 font-sans animate-pulse">
+            <Clock size={14}/> Menunggu Konfirmasi: {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+        </span>
+    );
+}
+
+// --- Notification Modal ---
+// MODIFIED: Logika modal dirombak total untuk alur baru
 function NotificationModal({ isOpen, onClose, data }) {
+    const [view, setView] = useState('list'); // 'list', 'confirm', 'final'
+    const [finalTemplate, setFinalTemplate] = useState(null);
     const [copySuccess, setCopySuccess] = useState('');
+
+    useEffect(() => {
+        // Reset view saat modal dibuka atau data berubah
+        if (isOpen) {
+            // REVISI: Karena hanya ada 1 template, langsung jalankan aksinya.
+            if (data.templates.length === 1 && data.templates[0].id === 'cf1') {
+                handleInitialAction(data.templates[0]);
+            } else {
+                setView('list');
+            }
+            setFinalTemplate(null);
+            setCopySuccess('');
+        }
+    }, [isOpen, data.templates]);
+
     if (!isOpen || !data.person) return null;
 
-    const handleAction = (template) => {
-        const message = template.text.replace(/\[NAME\]/g, data.person.name).replace(/\[LOKASI\]/g, "Photobooth");
-        
-        if (data.actionType === 'whatsapp') {
+    const handleInitialAction = (template) => {
+        // Jika template minta konfirmasi, ubah view
+        if (template.id === 'cf1') {
+            // Buka WhatsApp dengan pesan awal
+            const message = template.text.replace(/\[NAME\]/g, data.person.name);
             window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-        } else { // 'copy'
-            const textArea = document.createElement("textarea");
-            textArea.value = message;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                setCopySuccess('Pesan berhasil disalin!');
-            } catch (err) {
-                setCopySuccess('Gagal menyalin pesan.');
-            }
-            document.body.removeChild(textArea);
-        }
-
-        if (template.updatesStatusTo && data.updateStatus) {
-            data.updateStatus(data.person.id, template.updatesStatusTo);
-        }
-        
-        if (data.actionType === 'copy') {
-             setTimeout(() => {
-                onClose();
-                setCopySuccess('');
-            }, 1000);
+            
+            // Update status dan timestamp di backend
+            data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo, notifiedTimestamp: Date.now() });
+            
+            // Ubah view di modal untuk menampilkan opsi YA/TIDAK
+            setView('confirm');
         } else {
+            // Untuk template lain, langsung kirim
+            const message = template.text.replace(/\[NAME\]/g, data.person.name);
+            window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+            if (template.updatesStatusTo) {
+                data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo });
+            }
             onClose();
+        }
+    };
+
+    const handleConfirmAction = (replyType) => {
+        const template = replyType === 'yes' ? messageTemplates.reply_yes : messageTemplates.reply_no;
+        setFinalTemplate(template);
+        data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo });
+        setView('final');
+    };
+    
+    const handleCopyAction = (template) => {
+        const message = template.text.replace(/\[NAME\]/g, data.person.name);
+        navigator.clipboard.writeText(message).then(() => {
+            setCopySuccess('Pesan berhasil disalin!');
+            setTimeout(() => {
+                onClose();
+            }, 1200);
+        }).catch(() => {
+            setCopySuccess('Gagal menyalin pesan.');
+        });
+    };
+
+    const renderContent = () => {
+        switch (view) {
+            case 'confirm':
+                return (
+                    <div className="text-center">
+                        <p className="font-sans text-gray-600 mb-4">Setelah mengirim notifikasi, tandai respon pelanggan di sini.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => handleConfirmAction('yes')} className="w-full px-4 py-3 font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                                BALAS "YA"
+                            </button>
+                            <button onClick={() => handleConfirmAction('no')} className="w-full px-4 py-3 font-bold text-white bg-red-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                                BALAS "TIDAK"
+                            </button>
+                        </div>
+                    </div>
+                );
+            case 'final':
+                return (
+                     <div className="bg-gray-50 p-4 rounded-lg border-2 border-black">
+                        <h3 className="font-semibold text-orange-600 text-xl tracking-wide">{finalTemplate.title}</h3>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap font-sans mt-2">{finalTemplate.text.replace(/\[NAME\]/g, data.person.name)}</p>
+                        <button onClick={() => handleCopyAction(finalTemplate)} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 font-bold text-white bg-blue-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                           <Copy size={16} /> COPY PESAN
+                        </button>
+                    </div>
+                );
+            default: // 'list' - Seharusnya tidak pernah ditampilkan jika logika useEffect berjalan
+                return <div className="text-center font-sans text-gray-500">Memproses...</div>;
         }
     };
 
@@ -422,22 +489,13 @@ function NotificationModal({ isOpen, onClose, data }) {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center p-4 z-50">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border-4 border-black">
                 <div className="p-6 border-b-4 border-black flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-black tracking-wider">KIRIM NOTIFIKASI KE {data.person.name}</h2>
+                    <h2 className="text-2xl font-bold text-black tracking-wider">NOTIFIKASI: {data.person.name}</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-black rounded-full p-1 hover:bg-gray-200 transition-colors">
                         <X size={24} />
                     </button>
                 </div>
                 <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                    {data.templates.map(template => (
-                        <div key={template.id} className="bg-gray-50 p-4 rounded-lg border-2 border-black">
-                            <h3 className="font-semibold text-orange-600 text-xl tracking-wide">{template.title}</h3>
-                            <p className="text-sm text-gray-600 whitespace-pre-wrap font-sans mt-2">{template.text.replace(/\[NAME\]/g, data.person.name).replace(/\[LOKASI\]/g, "Photobooth")}</p>
-                            <button onClick={() => handleAction(template)} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 font-bold text-white bg-orange-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
-                                {data.actionType === 'copy' ? <Copy size={16} /> : <WhatsAppIcon />}
-                                {data.actionType === 'copy' ? 'COPY PESAN' : 'KIRIM VIA WHATSAPP'}
-                            </button>
-                        </div>
-                    ))}
+                    {renderContent()}
                     {copySuccess && <p className="text-center text-sm text-green-600 pt-2 font-sans">{copySuccess}</p>}
                 </div>
             </div>
@@ -448,4 +506,3 @@ function NotificationModal({ isOpen, onClose, data }) {
 function ErrorDisplay({ message }) {
     return <div className="bg-red-100 border-2 border-black text-red-800 px-4 py-3 rounded-lg mb-6"><strong className="font-bold">ERROR: </strong><span>{message}</span></div>;
 }
-
