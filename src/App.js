@@ -390,7 +390,6 @@ function NotificationModal({ isOpen, onClose, data }) {
     const [finalTemplate, setFinalTemplate] = useState(null);
     const [copySuccess, setCopySuccess] = useState('');
 
-    // FIX: Refactored to destructure the parameter and renamed it to avoid linter confusion.
     const handleInitialAction = useCallback((templateData) => {
         const { id, text, updatesStatusTo } = templateData;
         
@@ -407,7 +406,8 @@ function NotificationModal({ isOpen, onClose, data }) {
             }
             onClose();
         }
-    }, [data.person, data.updateQueue, onClose]);
+    // FIX: Added 'data' to the dependency array to resolve the build error.
+    }, [data, onClose]);
 
     useEffect(() => {
         if (isOpen) {
