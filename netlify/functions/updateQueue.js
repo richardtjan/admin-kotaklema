@@ -1,10 +1,11 @@
 const { google } = require('googleapis');
 
-// Konfigurasi otentikasi (sama seperti file sebelumnya)
+// Konfigurasi otentikasi
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    // FIX: Decode kunci dari format Base64
+    private_key: Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8'),
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
@@ -65,13 +66,13 @@ exports.handler = async (event, context) => {
             
             if(updates.length > 0){
                  await sheets.spreadsheets.values.batchUpdate({
-                    spreadsheetId: SPREADSHEET_ID,
-                    resource: {
-                        valueInputOption: 'USER_ENTERED',
-                        data: updates
-                    }
-                });
-                return { statusCode: 200, body: JSON.stringify({ message: 'Berhasil diupdate.' }) };
+                     spreadsheetId: SPREADSHEET_ID,
+                     resource: {
+                         valueInputOption: 'USER_ENTERED',
+                         data: updates
+                     }
+                 });
+                 return { statusCode: 200, body: JSON.stringify({ message: 'Berhasil diupdate.' }) };
             }
         }
         return { statusCode: 404, body: JSON.stringify({ error: 'ID tidak ditemukan.' }) };

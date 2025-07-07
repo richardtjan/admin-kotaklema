@@ -4,15 +4,14 @@ const { google } = require('googleapis');
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    // Ganti newline dengan karakter newline sesungguhnya
-    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    // FIX: Decode kunci dari format Base64
+    private_key: Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8'),
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
-// Ganti dengan nama sheet Anda, misal 'Antrian' atau 'Sheet1'
 const SHEET_NAME = 'Antrian'; 
 
 exports.handler = async (event, context) => {
