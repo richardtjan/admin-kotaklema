@@ -1,8 +1,9 @@
 const { google } = require('googleapis');
 const { v4: uuidv4 } = require('uuid');
 
-// FIX: Membaca seluruh kredensial dari satu variabel JSON
-const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+// FIX: Decode the entire JSON from a Base64 string first
+const credentialsJson = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf8');
+const credentials = JSON.parse(credentialsJson);
 
 const auth = new google.auth.GoogleAuth({
   credentials: {
