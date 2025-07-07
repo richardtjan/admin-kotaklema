@@ -1,11 +1,12 @@
 const { google } = require('googleapis');
 
-// Konfigurasi otentikasi
+// FIX: Membaca seluruh kredensial dari satu variabel JSON
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    // FIX: Decode kunci dari format Base64
-    private_key: Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8'),
+    client_email: credentials.client_email,
+    private_key: credentials.private_key,
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
@@ -14,14 +15,13 @@ const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Antrian';
 
-// Fungsi bantuan untuk menemukan nomor baris berdasarkan ID
 async function findRowById(id) {
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:A`, // Cari hanya di kolom ID (kolom A)
+    range: `${SHEET_NAME}!A:A`,
   });
   const rowIndex = result.data.values.findIndex(row => row[0] === id);
-  return rowIndex !== -1 ? rowIndex + 1 : null; // +1 karena index berbasis 0, row berbasis 1
+  return rowIndex !== -1 ? rowIndex + 1 : null;
 }
 
 exports.handler = async (event, context) => {
@@ -42,7 +42,7 @@ exports.handler = async (event, context) => {
             requests: [{
               deleteDimension: {
                 range: {
-                  sheetId: 0, // Asumsi sheet pertama
+                  sheetId: 0,
                   dimension: 'ROWS',
                   startIndex: rowNumber - 1,
                   endIndex: rowNumber,

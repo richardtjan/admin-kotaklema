@@ -1,11 +1,12 @@
 const { google } = require('googleapis');
 
-// Konfigurasi otentikasi
+// FIX: Membaca seluruh kredensial dari satu variabel JSON
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    // FIX: Decode kunci dari format Base64
-    private_key: Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8'),
+    client_email: credentials.client_email,
+    private_key: credentials.private_key,
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
@@ -18,21 +19,19 @@ exports.handler = async (event, context) => {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:F`, // Asumsi kolom A-F: id, name, phone, timestamp, status, order
+      range: `${SHEET_NAME}!A:F`,
     });
 
     const rows = response.data.values || [];
-    // Skip header row (baris pertama)
     const data = rows.slice(1).map(row => ({
       id: row[0],
       name: row[1],
       phone: row[2],
       timestamp: row[3],
       status: row[4],
-      order: parseFloat(row[5]) || 0, // Pastikan order adalah angka
+      order: parseFloat(row[5]) || 0,
     }));
 
-    // Urutkan berdasarkan 'order'
     data.sort((a, b) => a.order - b.order);
 
     return {

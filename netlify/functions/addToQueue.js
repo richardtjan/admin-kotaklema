@@ -1,12 +1,13 @@
 const { google } = require('googleapis');
 const { v4: uuidv4 } = require('uuid');
 
-// Konfigurasi otentikasi
+// FIX: Membaca seluruh kredensial dari satu variabel JSON
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    // FIX: Decode kunci dari format Base64
-    private_key: Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8'),
+    client_email: credentials.client_email,
+    private_key: credentials.private_key,
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
@@ -28,12 +29,12 @@ exports.handler = async (event, context) => {
     }
 
     const newRow = [
-      uuidv4(), // ID unik untuk setiap baris
+      uuidv4(),
       name,
       phone,
-      new Date().toISOString(), // Timestamp
-      'waiting', // Status awal
-      order, // Order number
+      new Date().toISOString(),
+      'waiting',
+      order,
     ];
 
     await sheets.spreadsheets.values.append({
