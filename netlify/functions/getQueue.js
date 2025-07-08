@@ -1,24 +1,17 @@
 const { google } = require('googleapis');
 
+// Fungsi ini akan dijalankan untuk setiap permintaan
 exports.handler = async (event, context) => {
-  // --- DEBUGGING STEP ---
-  // Memindahkan semua logika ke dalam handler untuk menjamin log muncul.
-  console.log('--- STARTING getQueue HANDLER ---');
   try {
-    const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY;
-    console.log('Raw GOOGLE_PRIVATE_KEY from env:', rawPrivateKey);
+    // Membaca kredensial dari environment variable
+    const credentialsJson = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf8');
+    const credentials = JSON.parse(credentialsJson);
 
-    if (!rawPrivateKey || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SHEET_ID) {
-      throw new Error('One or more Google credentials environment variables are not set.');
-    }
-
-    // Ini adalah perbaikan paling umum untuk private key di env vars.
-    const privateKey = rawPrivateKey.replace(/\\n/g, '\n');
-    
+    // Konfigurasi otentikasi
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: privateKey,
+        client_email: credentials.client_email,
+        private_key: credentials.private_key,
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
@@ -27,6 +20,7 @@ exports.handler = async (event, context) => {
     const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
     const SHEET_NAME = 'Antrian';
 
+    // Mengambil data dari sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A:F`,
@@ -49,10 +43,10 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(data),
     };
   } catch (error) {
-    console.error('CRITICAL ERROR in getQueue handler:', error);
+    console.error('Error in getQueue handler:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Gagal memproses permintaan. Cek logs.' }),
+      body: JSON.stringify({ error: 'Gagal mengambil data dari Google Sheets.' }),
     };
   }
 };

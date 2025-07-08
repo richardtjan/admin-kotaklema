@@ -2,23 +2,20 @@ const { google } = require('googleapis');
 const { v4: uuidv4 } = require('uuid');
 
 exports.handler = async (event, context) => {
-  console.log('--- STARTING addToQueue HANDLER ---');
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
-    const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY;
-    if (!rawPrivateKey || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SHEET_ID) {
-      throw new Error('One or more Google credentials environment variables are not set.');
-    }
-    
-    const privateKey = rawPrivateKey.replace(/\\n/g, '\n');
+    // Membaca kredensial dari environment variable
+    const credentialsJson = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf8');
+    const credentials = JSON.parse(credentialsJson);
 
+    // Konfigurasi otentikasi
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: privateKey,
+        client_email: credentials.client_email,
+        private_key: credentials.private_key,
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
@@ -56,7 +53,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ message: 'Berhasil ditambahkan ke antrian.' }),
     };
   } catch (error) {
-    console.error('CRITICAL ERROR in addToQueue handler:', error);
+    console.error('Error in addToQueue handler:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Gagal menambahkan data ke Google Sheets.' }),

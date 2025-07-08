@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 
+// Fungsi bantuan untuk menemukan baris
 async function findRowById(sheets, SPREADSHEET_ID, SHEET_NAME, id) {
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
@@ -11,23 +12,20 @@ async function findRowById(sheets, SPREADSHEET_ID, SHEET_NAME, id) {
 }
 
 exports.handler = async (event, context) => {
-  console.log('--- STARTING updateQueue HANDLER ---');
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
-    const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY;
-    if (!rawPrivateKey || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SHEET_ID) {
-      throw new Error('One or more Google credentials environment variables are not set.');
-    }
+    // Membaca kredensial dari environment variable
+    const credentialsJson = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf8');
+    const credentials = JSON.parse(credentialsJson);
 
-    const privateKey = rawPrivateKey.replace(/\\n/g, '\n');
-
+    // Konfigurasi otentikasi
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: privateKey,
+        client_email: credentials.client_email,
+        private_key: credentials.private_key,
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
@@ -86,7 +84,7 @@ exports.handler = async (event, context) => {
 
     return { statusCode: 400, body: JSON.stringify({ error: 'Aksi tidak valid.' }) };
   } catch (error) {
-    console.error('CRITICAL ERROR in updateQueue handler:', error);
+    console.error('Error in updateQueue handler:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Gagal mengupdate data di Google Sheets.' }),
