@@ -1,28 +1,32 @@
 const { google } = require('googleapis');
 
-// --- DEBUGGING STEP ---
-// Kita akan log variabel untuk melihat isinya dari sisi server.
-console.log('--- START DEBUGGING ---');
-console.log('Raw GOOGLE_PRIVATE_KEY:', process.env.GOOGLE_PRIVATE_KEY);
-// --- END DEBUGGING STEP ---
-
-// FIX: Ensure the private key's newlines are correctly formatted.
-const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
-
-const auth = new google.auth.GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: privateKey,
-  },
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-const sheets = google.sheets({ version: 'v4', auth });
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
-const SHEET_NAME = 'Antrian'; 
-
 exports.handler = async (event, context) => {
+  // --- DEBUGGING STEP ---
+  // Memindahkan semua logika ke dalam handler untuk menjamin log muncul.
+  console.log('--- STARTING getQueue HANDLER ---');
   try {
+    const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY;
+    console.log('Raw GOOGLE_PRIVATE_KEY from env:', rawPrivateKey);
+
+    if (!rawPrivateKey || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SHEET_ID) {
+      throw new Error('One or more Google credentials environment variables are not set.');
+    }
+
+    // Ini adalah perbaikan paling umum untuk private key di env vars.
+    const privateKey = rawPrivateKey.replace(/\\n/g, '\n');
+    
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: privateKey,
+      },
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+    const SHEET_NAME = 'Antrian';
+
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A:F`,
@@ -45,10 +49,10 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(data),
     };
   } catch (error) {
-    console.error('Error fetching from Google Sheets:', error);
+    console.error('CRITICAL ERROR in getQueue handler:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Gagal mengambil data dari Google Sheets.' }),
+      body: JSON.stringify({ error: 'Gagal memproses permintaan. Cek logs.' }),
     };
   }
 };
