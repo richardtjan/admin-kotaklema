@@ -1,5 +1,11 @@
 const { google } = require('googleapis');
 
+// --- DEBUGGING STEP ---
+// Kita akan log variabel untuk melihat isinya dari sisi server.
+console.log('--- START DEBUGGING ---');
+console.log('Raw GOOGLE_PRIVATE_KEY:', process.env.GOOGLE_PRIVATE_KEY);
+// --- END DEBUGGING STEP ---
+
 // FIX: Ensure the private key's newlines are correctly formatted.
 const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
 
