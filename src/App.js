@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// RE-ADD: Menambahkan kembali ikon 'Phone' untuk tombol notifikasi.
 import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2 } from 'lucide-react';
 
 // --- Constants ---
 const TURN_DURATION_MINUTES = 7;
 const TURN_DURATION_MS = TURN_DURATION_MINUTES * 60 * 1000;
-// RE-ADD: Mengaktifkan kembali variabel untuk timer respon.
-const RESPONSE_WAIT_MS = 3 * 60 * 1000; // 3 minutes for response
+const RESPONSE_WAIT_MS = 3 * 60 * 1000;
+
+// NEW: URL dari Apps Script Web App Anda, disimpan di environment variable
+const SCRIPT_URL = process.env.REACT_APP_APPS_SCRIPT_URL;
 
 // --- Custom SVG Logo (Comic Style) ---
 const KotaklemaLogo = () => (
@@ -33,10 +34,8 @@ const KotaklemaLogo = () => (
     </div>
 );
 
-// RE-ADD: Mengaktifkan kembali template pesan.
 const messageTemplates = {
     initial: [
-        // REVISI: Hanya template "Minta Konfirmasi" yang disimpan.
         { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. 😊\n\nMakasih banyak atas pengertiannya, Kak! 🙏`, updatesStatusTo: 'notified' }
     ],
     reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Kami tunggu kedatangannya di Photobooth.`, updatesStatusTo: 'confirmed' },
@@ -54,18 +53,13 @@ export default function App() {
     const fetchQueue = useCallback(async () => {
         setError(null);
         try {
-            const response = await fetch('/api/getQueue');
+            // MODIFIED: Fetch dari URL Apps Script
+            const response = await fetch(SCRIPT_URL);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            // NEW: Memastikan setiap item memiliki properti yang dibutuhkan
-            const processedData = data.map(p => ({
-                ...p,
-                status: p.status || 'waiting',
-                notifiedTimestamp: p.notifiedTimestamp || null
-            }));
-            setQueue(processedData);
+            setQueue(data);
         } catch (e) {
             console.error("Fetch Queue Error:", e);
             setError("Gagal memuat antrian dari Google Sheets.");
@@ -75,25 +69,35 @@ export default function App() {
     }, []);
 
     useEffect(() => {
+        if (!SCRIPT_URL) {
+            setError("URL Apps Script belum diatur di environment variables. (REACT_APP_APPS_SCRIPT_URL)");
+            setIsLoading(false);
+            return;
+        }
         fetchQueue();
         const intervalId = setInterval(fetchQueue, 15000);
         return () => clearInterval(intervalId);
     }, [fetchQueue]);
-
-    // MODIFIED: Fungsi update sekarang juga bisa menangani timestamp notifikasi
+    
+    // MODIFIED: Fungsi ini sekarang memanggil Apps Script dengan metode POST
     const handleUpdateQueue = useCallback(async (action, payload) => {
         try {
-            await fetch('/api/updateQueue', {
+            // Menggunakan 'fetch' biasa untuk Apps Script
+            const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action, payload }),
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                },
             });
-            await fetchQueue(); // Selalu refresh data setelah update
+            // Apps Script tidak selalu mengembalikan respons yang bisa di-parse, jadi kita langsung refresh
+            await fetchQueue();
         } catch (error) {
             console.error(`Error performing action ${action}:`, error);
             setError(`Gagal melakukan aksi: ${action}.`);
         }
     }, [fetchQueue]);
+
 
     const handleOpenModal = useCallback((person, templates) => {
         setModalData({
@@ -129,7 +133,7 @@ export default function App() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                        <div className="lg:col-span-2"><JoinQueueForm queue={queue} onQueueUpdate={fetchQueue} /></div>
+                        <div className="lg:col-span-2"><JoinQueueForm queue={queue} onUpdateQueue={handleUpdateQueue} /></div>
                         <div className="lg:col-span-3"><QueueDisplay nowServing={nowServing} upNext={upNext} onUpdateQueue={handleUpdateQueue} onOpenModal={handleOpenModal} /></div>
                     </div>
                 )}
@@ -139,8 +143,8 @@ export default function App() {
     );
 }
 
-// --- Join Queue Form --- (No changes)
-function JoinQueueForm({ queue, onQueueUpdate }) {
+// --- Join Queue Form ---
+function JoinQueueForm({ queue, onUpdateQueue }) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,24 +159,16 @@ function JoinQueueForm({ queue, onQueueUpdate }) {
         setIsSubmitting(true);
         try {
             const highestOrder = queue.reduce((max, p) => p.order > max ? p.order : max, 0);
-            const response = await fetch('/api/addToQueue', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: name.trim(),
-                    phone: phone.trim(),
-                    order: highestOrder + 1000,
-                }),
+            
+            // MODIFIED: Memanggil fungsi update dengan aksi 'add'
+            await onUpdateQueue('add', {
+                name: name.trim(),
+                phone: phone.trim(),
+                order: highestOrder + 1000,
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.error || 'Gagal menambahkan antrian.');
-            }
             
             setSubmitStatus({ type: 'success', message: `${name.trim()} berhasil ditambahkan.` });
             setName(''); setPhone('');
-            onQueueUpdate();
         } catch (error) {
             console.error("Error adding to queue: ", error);
             setSubmitStatus({ type: 'error', message: error.message });
@@ -203,8 +199,9 @@ function JoinQueueForm({ queue, onQueueUpdate }) {
     );
 }
 
-// --- Queue Display and Controls ---
-// MODIFIED: Props diubah untuk menangani logika baru
+// --- Sisa Komponen (QueueDisplay, Timer, Modal, dll.) ---
+// Tidak ada perubahan signifikan di bawah ini, jadi bisa dibiarkan apa adanya.
+
 function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
     const [timerState, setTimerState] = useState('idle');
@@ -315,7 +312,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button onClick={() => handleDelete(person.id)} className="p-2 text-white bg-red-600 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Trash2 size={14} /></button>
-                                                {/* NEW: Tombol panggil/notifikasi */}
                                                 <button onClick={() => onOpenModal(person, messageTemplates.initial)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Phone size={14} /></button>
                                                 <button onClick={() => handleFinishAndServe(person)} className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all">
                                                     <ChevronsRight size={14} /> LANJUT
@@ -323,7 +319,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                                             </div>
                                         </div>
                                         <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300 flex items-center justify-between min-h-[34px]">
-                                            {/* MODIFIED: Tampilan status sekarang bisa menampilkan timer */}
                                             {getStatusIndicator(person.status, person.notifiedTimestamp)}
                                         </div>
                                     </li>
@@ -339,7 +334,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     );
 }
 
-// --- Timer Components ---
 function TimerDisplay({ timeLeft }) {
     const minutes = Math.floor((timeLeft / 1000) / 60);
     const seconds = Math.floor((timeLeft / 1000) % 60);
@@ -351,7 +345,6 @@ function TimerDisplay({ timeLeft }) {
     );
 }
 
-// NEW: Komponen untuk timer respon 3 menit
 function ResponseTimer({ notifiedTimestamp }) {
     const [timeLeft, setTimeLeft] = useState(RESPONSE_WAIT_MS);
 
@@ -384,29 +377,25 @@ function ResponseTimer({ notifiedTimestamp }) {
     );
 }
 
-// --- Notification Modal ---
 function NotificationModal({ isOpen, onClose, data }) {
-    const [view, setView] = useState('list'); // 'list', 'confirm', 'final'
+    const [view, setView] = useState('list');
     const [finalTemplate, setFinalTemplate] = useState(null);
     const [copySuccess, setCopySuccess] = useState('');
 
-    const handleInitialAction = useCallback((templateData) => {
-        const { id, text, updatesStatusTo } = templateData;
-        
-        if (id === 'cf1') {
-            const message = text.replace(/\[NAME\]/g, data.person.name);
+    const handleInitialAction = useCallback((template) => {
+        if (template.id === 'cf1') {
+            const message = template.text.replace(/\[NAME\]/g, data.person.name);
             window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-            data.updateQueue('update', { id: data.person.id, newStatus: updatesStatusTo, notifiedTimestamp: Date.now() });
+            data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo, notifiedTimestamp: Date.now() });
             setView('confirm');
         } else {
-            const message = text.replace(/\[NAME\]/g, data.person.name);
+            const message = template.text.replace(/\[NAME\]/g, data.person.name);
             window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-            if (updatesStatusTo) {
-                data.updateQueue('update', { id: data.person.id, newStatus: updatesStatusTo });
+            if (template.updatesStatusTo) {
+                data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo });
             }
             onClose();
         }
-    // FIX: Added 'data' to the dependency array to resolve the build error.
     }, [data, onClose]);
 
     useEffect(() => {
@@ -468,7 +457,7 @@ function NotificationModal({ isOpen, onClose, data }) {
                         </button>
                     </div>
                 );
-            default: // 'list'
+            default:
                 return <div className="text-center font-sans text-gray-500">Memproses...</div>;
         }
     };
