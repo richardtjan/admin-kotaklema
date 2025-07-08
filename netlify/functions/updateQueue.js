@@ -1,13 +1,12 @@
 const { google } = require('googleapis');
 
-// FIX: Decode the entire JSON from a Base64 string first
-const credentialsJson = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf8');
-const credentials = JSON.parse(credentialsJson);
+// FIX: Ensure the private key's newlines are correctly formatted.
+const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
 
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    client_email: credentials.client_email,
-    private_key: credentials.private_key,
+    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    private_key: privateKey,
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
@@ -21,7 +20,9 @@ async function findRowById(id) {
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!A:A`,
   });
-  const rowIndex = result.data.values.findIndex(row => row[0] === id);
+  // Add a check for result.data.values to prevent errors on empty sheets
+  const values = result.data.values || [];
+  const rowIndex = values.findIndex(row => row[0] === id);
   return rowIndex !== -1 ? rowIndex + 1 : null;
 }
 

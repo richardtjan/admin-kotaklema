@@ -1,14 +1,13 @@
 const { google } = require('googleapis');
 const { v4: uuidv4 } = require('uuid');
 
-// FIX: Decode the entire JSON from a Base64 string first
-const credentialsJson = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf8');
-const credentials = JSON.parse(credentialsJson);
+// FIX: Ensure the private key's newlines are correctly formatted.
+const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
 
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    client_email: credentials.client_email,
-    private_key: credentials.private_key,
+    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    private_key: privateKey,
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
