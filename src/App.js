@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+// FIX: Menambahkan kembali 'Copy' ke dalam import.
 import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2 } from 'lucide-react';
 
 // --- Constants ---
@@ -34,7 +35,9 @@ const KotaklemaLogo = () => (
 );
 
 const messageTemplates = {
-    initial: { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' }
+    initial: { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' },
+    reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Kami tunggu kedatangannya di Photobooth.`, updatesStatusTo: 'confirmed' },
+    reply_no: { id: 'resp_no', title: 'Balasan untuk "TIDAK"', text: `Baik, Kak [NAME], terima kasih informasinya. Kami akan memberitahu Anda kembali jika sudah ada giliran yang tersedia.`, updatesStatusTo: 'waiting' }
 };
 
 // --- Main App Component ---
@@ -231,7 +234,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
 
     const handleDragStart = (e, person) => {
         setDraggedItem(person);
-        // Memberi sedikit efek visual saat item di-drag
         e.currentTarget.style.opacity = '0.5';
     };
 
@@ -258,6 +260,24 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
 
         await onUpdateQueue('update', { id: draggedItem.id, newOrder });
         setDraggedItem(null);
+    };
+
+    // FIX: Logika notifikasi dipindahkan ke sini untuk aksi yang lebih cepat
+    const handleNotify = (person) => {
+        // 1. Buka WhatsApp
+        const template = messageTemplates.initial;
+        const message = template.text.replace(/\[NAME\]/g, person.name);
+        window.open(`https://wa.me/${person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+        
+        // 2. Update status dan timestamp untuk memulai timer
+        onUpdateQueue('update', { 
+            id: person.id, 
+            newStatus: template.updatesStatusTo, 
+            notifiedTimestamp: Date.now() 
+        });
+
+        // 3. Buka modal konfirmasi
+        onOpenModal(person);
     };
 
     const getStatusIndicator = (status, notifiedTimestamp) => {
@@ -304,7 +324,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center">
-                                            {/* FIX: Drag handle hanya pada ikon grip */}
                                             <div 
                                                 draggable 
                                                 onDragStart={(e) => handleDragStart(e, person)}
@@ -317,7 +336,8 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => handleDelete(person.id)} className="p-2 text-white bg-red-600 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Trash2 size={14} /></button>
-                                            <button onClick={() => onOpenModal(person)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Phone size={14} /></button>
+                                            {/* FIX: onClick sekarang memanggil handleNotify */}
+                                            <button onClick={() => handleNotify(person)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Phone size={14} /></button>
                                             <button onClick={() => handleFinishAndServe(person)} className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all">
                                                 <ChevronsRight size={14} /> LANJUT
                                             </button>
@@ -349,13 +369,12 @@ function TimerDisplay({ timeLeft }) {
     );
 }
 
-// FIX: Pastikan timestamp diubah menjadi angka sebelum digunakan
 function ResponseTimer({ notifiedTimestamp }) {
     const [timeLeft, setTimeLeft] = useState(RESPONSE_WAIT_MS);
 
     useEffect(() => {
         const startTime = Number(notifiedTimestamp);
-        if (isNaN(startTime)) return; // Jangan lakukan apa-apa jika timestamp tidak valid
+        if (isNaN(startTime)) return; 
 
         const calculateTimeLeft = () => {
             const elapsed = Date.now() - startTime;
@@ -385,30 +404,70 @@ function ResponseTimer({ notifiedTimestamp }) {
     );
 }
 
-// FIX: Menyederhanakan modal
+// FIX: Menyederhanakan modal dan mengubah alurnya
 function NotificationModal({ isOpen, onClose, data }) {
+    const [view, setView] = useState('confirm');
+    const [finalTemplate, setFinalTemplate] = useState(null);
+    const [copySuccess, setCopySuccess] = useState('');
+
     useEffect(() => {
-        if (isOpen && data.person) {
-            // Aksi utama: Buka WhatsApp
-            const template = messageTemplates.initial;
-            const message = template.text.replace(/\[NAME\]/g, data.person.name);
-            window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-            
-            // Update status dan timestamp di backend
-            data.updateQueue('update', { 
-                id: data.person.id, 
-                newStatus: template.updatesStatusTo, 
-                notifiedTimestamp: Date.now() 
-            });
+        // Reset state setiap kali modal dibuka, agar selalu kembali ke tampilan awal
+        if (isOpen) {
+            setView('confirm');
+            setFinalTemplate(null);
+            setCopySuccess('');
         }
-    }, [isOpen, data]); // Dijalankan setiap kali modal dibuka
+    }, [isOpen]);
 
     if (!isOpen || !data.person) return null;
 
     const handleConfirmAction = (replyType) => {
-        const newStatus = replyType === 'yes' ? 'confirmed' : 'waiting';
-        data.updateQueue('update', { id: data.person.id, newStatus });
-        onClose(); // Langsung tutup modal setelah aksi
+        const template = replyType === 'yes' ? messageTemplates.reply_yes : messageTemplates.reply_no;
+        data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo });
+        setFinalTemplate(template);
+        setView('final');
+    };
+    
+    const handleCopyAction = (template) => {
+        const message = template.text.replace(/\[NAME\]/g, data.person.name);
+        navigator.clipboard.writeText(message).then(() => {
+            setCopySuccess('Pesan berhasil disalin!');
+            setTimeout(() => {
+                onClose();
+            }, 1200);
+        }).catch(err => {
+            console.error('Gagal menyalin: ', err);
+            setCopySuccess('Gagal menyalin pesan.');
+        });
+    };
+
+    const renderContent = () => {
+        if (view === 'final') {
+            return (
+                 <div className="bg-gray-50 p-4 rounded-lg border-2 border-black">
+                    <h3 className="font-semibold text-orange-600 text-xl tracking-wide">{finalTemplate.title}</h3>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap font-sans mt-2">{finalTemplate.text.replace(/\[NAME\]/g, data.person.name)}</p>
+                    <button onClick={() => handleCopyAction(finalTemplate)} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 font-bold text-white bg-blue-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                       <Copy size={16} /> COPY PESAN
+                    </button>
+                </div>
+            );
+        }
+
+        // Tampilan default adalah 'confirm'
+        return (
+            <div className="text-center">
+                <p className="font-sans text-gray-600 mb-4">Pesan notifikasi telah dikirim. Tandai respon dari pelanggan di bawah ini.</p>
+                <div className="grid grid-cols-2 gap-4">
+                    <button onClick={() => handleConfirmAction('yes')} className="w-full px-4 py-3 font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                        BALAS "YA"
+                    </button>
+                    <button onClick={() => handleConfirmAction('no')} className="w-full px-4 py-3 font-bold text-white bg-red-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                        BALAS "TIDAK"
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -420,18 +479,9 @@ function NotificationModal({ isOpen, onClose, data }) {
                         <X size={24} />
                     </button>
                 </div>
-                <div className="p-6">
-                    <div className="text-center">
-                        <p className="font-sans text-gray-600 mb-4">Pesan notifikasi telah dikirim. Tandai respon dari pelanggan di bawah ini.</p>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button onClick={() => handleConfirmAction('yes')} className="w-full px-4 py-3 font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
-                                BALAS "YA"
-                            </button>
-                            <button onClick={() => handleConfirmAction('no')} className="w-full px-4 py-3 font-bold text-white bg-red-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
-                                BALAS "TIDAK"
-                            </button>
-                        </div>
-                    </div>
+                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                    {renderContent()}
+                    {copySuccess && <p className="text-center text-sm text-green-600 pt-2 font-sans">{copySuccess}</p>}
                 </div>
             </div>
         </div>

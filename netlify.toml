@@ -2,4 +2,4 @@
   command = "npm run build"
   publish = "build"
 
-# Kita tidak lagi memerlukan redirects ke functions
+# Kita tidak lagi memerlukan redirects atau functions
