@@ -6,7 +6,6 @@ const TURN_DURATION_MINUTES = 7;
 const TURN_DURATION_MS = TURN_DURATION_MINUTES * 60 * 1000;
 const RESPONSE_WAIT_MS = 3 * 60 * 1000;
 
-// NEW: URL dari Apps Script Web App Anda, disimpan di environment variable
 const SCRIPT_URL = process.env.REACT_APP_APPS_SCRIPT_URL;
 
 // --- Custom SVG Logo (Comic Style) ---
@@ -34,9 +33,10 @@ const KotaklemaLogo = () => (
     </div>
 );
 
+// MODIFIKASI: Mengganti emoji dengan teks yang lebih aman untuk WhatsApp
 const messageTemplates = {
     initial: [
-        { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. 😊\n\nMakasih banyak atas pengertiannya, Kak! 🙏`, updatesStatusTo: 'notified' }
+        { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' }
     ],
     reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Kami tunggu kedatangannya di Photobooth.`, updatesStatusTo: 'confirmed' },
     reply_no: { id: 'resp_no', title: 'Balasan untuk "TIDAK"', text: `Baik, Kak [NAME], terima kasih informasinya. Kami akan memberitahu Anda kembali jika sudah ada giliran yang tersedia.`, updatesStatusTo: 'waiting' }
@@ -53,7 +53,6 @@ export default function App() {
     const fetchQueue = useCallback(async () => {
         setError(null);
         try {
-            // MODIFIED: Fetch dari URL Apps Script
             const response = await fetch(SCRIPT_URL);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -79,10 +78,8 @@ export default function App() {
         return () => clearInterval(intervalId);
     }, [fetchQueue]);
     
-    // MODIFIED: Fungsi ini sekarang memanggil Apps Script dengan metode POST
     const handleUpdateQueue = useCallback(async (action, payload) => {
         try {
-            // FIX: Menghapus 'const response =' karena variabelnya tidak digunakan.
             await fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action, payload }),
@@ -90,7 +87,6 @@ export default function App() {
                     'Content-Type': 'text/plain;charset=utf-8',
                 },
             });
-            // Apps Script tidak selalu mengembalikan respons yang bisa di-parse, jadi kita langsung refresh
             await fetchQueue();
         } catch (error) {
             console.error(`Error performing action ${action}:`, error);
@@ -143,7 +139,6 @@ export default function App() {
     );
 }
 
-// --- Join Queue Form ---
 function JoinQueueForm({ queue, onUpdateQueue }) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -160,7 +155,6 @@ function JoinQueueForm({ queue, onUpdateQueue }) {
         try {
             const highestOrder = queue.reduce((max, p) => p.order > max ? p.order : max, 0);
             
-            // MODIFIED: Memanggil fungsi update dengan aksi 'add'
             await onUpdateQueue('add', {
                 name: name.trim(),
                 phone: phone.trim(),
@@ -198,9 +192,6 @@ function JoinQueueForm({ queue, onUpdateQueue }) {
         </div>
     );
 }
-
-// --- Sisa Komponen (QueueDisplay, Timer, Modal, dll.) ---
-// Tidak ada perubahan signifikan di bawah ini, jadi bisa dibiarkan apa adanya.
 
 function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
