@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// MODIFIKASI: Menambahkan ikon MessageSquarePlus untuk tombol balasan
-import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2, MessageSquarePlus } from 'lucide-react';
+import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2, MessageSquarePlus, Tv } from 'lucide-react';
 
 // --- Constants ---
 const TURN_DURATION_MINUTES = 7;
@@ -10,29 +9,38 @@ const RESPONSE_WAIT_MS = 2 * 60 * 1000;
 const SCRIPT_URL = process.env.REACT_APP_APPS_SCRIPT_URL;
 
 // --- Custom SVG Logo (Comic Style) ---
-const KotaklemaLogo = () => (
-    <div className="flex flex-col items-center">
-        <svg width="450" height="120" viewBox="0 0 450 120">
-            <defs>
-                <style>
-                    {`
-                        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
-                    `}
-                </style>
-                <filter id="comic-shadow" x="-10%" y="-10%" width="120%" height="120%">
-                    <feDropShadow dx="6" dy="6" stdDeviation="0" floodColor="#000" />
-                </filter>
-            </defs>
-            <g transform="skewX(-10)">
-                <rect x="10" y="10" width="430" height="90" rx="20" ry="20" fill="#F3F4F6" stroke="#000000" strokeWidth="4" filter="url(#comic-shadow)" />
-                <text x="225" y="78" fontFamily="Bangers, cursive" fontSize="75" fill="#F97316" textAnchor="middle" stroke="#000000" strokeWidth="3" letterSpacing="2">
-                    KOTAKLEMA
-                </text>
-            </g>
-        </svg>
-        <p className="font-['Bangers'] text-2xl text-zinc-800 tracking-wider mt-2">Admin KOTAKLEMA PhotoBox</p>
-    </div>
-);
+const KotaklemaLogo = ({ size = 'normal' }) => {
+    const isLarge = size === 'large';
+    const svgWidth = isLarge ? 600 : 450;
+    const svgHeight = isLarge ? 160 : 120;
+    const textFontSize = isLarge ? 100 : 75;
+    const rectHeight = isLarge ? 120 : 90;
+    const textY = isLarge ? 105 : 78;
+
+    return (
+        <div className="flex flex-col items-center">
+            <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+                <defs>
+                    <style>
+                        {`
+                            @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+                        `}
+                    </style>
+                    <filter id="comic-shadow" x="-10%" y="-10%" width="120%" height="120%">
+                        <feDropShadow dx="6" dy="6" stdDeviation="0" floodColor="#000" />
+                    </filter>
+                </defs>
+                <g transform="skewX(-10)">
+                    <rect x="10" y="10" width={svgWidth - 20} height={rectHeight} rx="20" ry="20" fill="#F3F4F6" stroke="#000000" strokeWidth="4" filter="url(#comic-shadow)" />
+                    <text x={svgWidth / 2} y={textY} fontFamily="Bangers, cursive" fontSize={textFontSize} fill="#F97316" textAnchor="middle" stroke="#000000" strokeWidth="3" letterSpacing="2">
+                        KOTAKLEMA
+                    </text>
+                </g>
+            </svg>
+        </div>
+    );
+};
+
 
 const messageTemplates = {
     initial: { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 2 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' },
@@ -40,8 +48,198 @@ const messageTemplates = {
     reply_no: { id: 'resp_no', title: 'Balasan untuk "TIDAK"', text: `Baik, Kak [NAME], terima kasih informasinya. Kami akan memberitahu Kakak kembali jika sudah ada giliran yang tersedia.`, updatesStatusTo: 'waiting' }
 };
 
-// --- Main App Component ---
+// --- Main App Component (Router) ---
 export default function App() {
+    const [page, setPage] = useState('');
+
+    useEffect(() => {
+        const path = window.location.pathname;
+        if (path.startsWith('/display')) {
+            setPage('display');
+        } else if (path.startsWith('/join')) {
+            setPage('join');
+        } else {
+            setPage('admin');
+        }
+    }, []);
+
+    switch (page) {
+        case 'display':
+            return <CustomerDisplayView />;
+        case 'join':
+            return <CustomerJoinView />;
+        case 'admin':
+            return <AdminView />;
+        default:
+            return null; // Atau loading spinner
+    }
+}
+
+// --- Customer Join View Component (NEW) ---
+function CustomerJoinView() {
+    const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
+    const [error, setError] = useState(null);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!name.trim() || !phone.trim()) {
+            setSubmitStatus({ type: 'error', message: 'Harap isi nama dan nomor WhatsApp.' });
+            return;
+        }
+        setIsSubmitting(true);
+        setError(null);
+
+        try {
+            // Pertama, ambil data antrian saat ini untuk menentukan nomor urut terakhir
+            const queueResponse = await fetch(SCRIPT_URL);
+            if (!queueResponse.ok) throw new Error("Gagal mendapatkan data antrian.");
+            const currentQueue = await queueResponse.json();
+            const highestOrder = currentQueue.reduce((max, p) => p.order > max ? p.order : max, 0);
+
+            // Kirim data baru ke backend
+            const payload = {
+                action: 'add',
+                payload: {
+                    name: name.trim(),
+                    phone: phone.trim(),
+                    order: highestOrder + 1000,
+                }
+            };
+
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            });
+
+            setSubmitStatus({ type: 'success', message: `Terima kasih, ${name.trim()}! Kamu berhasil masuk antrian.` });
+            setName('');
+            setPhone('');
+        } catch (err) {
+            console.error("Error joining queue:", err);
+            setError("Terjadi kesalahan. Coba lagi nanti.");
+            setSubmitStatus({ type: 'error', message: 'Gagal bergabung dengan antrian.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="bg-orange-500 text-black min-h-screen font-['Bangers'] flex flex-col items-center justify-center p-4">
+             <div className="w-full max-w-md mx-auto bg-yellow-400 rounded-2xl shadow-lg p-8 border-4 border-black">
+                <header className="text-center mb-6">
+                    <KotaklemaLogo />
+                </header>
+                {submitStatus.type === 'success' ? (
+                    <div className="text-center p-4 bg-green-100 text-green-800 rounded-lg border-2 border-green-800">
+                        <h2 className="text-3xl">BERHASIL!</h2>
+                        <p className="font-sans mt-2">{submitStatus.message}</p>
+                        <p className="font-sans mt-2 text-sm">Silakan tunggu giliranmu, ya!</p>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <h2 className="text-4xl text-center tracking-wider">GABUNG ANTRIAN</h2>
+                        <div>
+                            <label htmlFor="name" className="block text-lg mb-2 tracking-wide">NAMA KAMU</label>
+                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="TULIS DI SINI..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                        </div>
+                        <div>
+                            <label htmlFor="phone" className="block text-lg mb-2 tracking-wide">NOMOR WHATSAPP</label>
+                            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                        </div>
+                        <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                            {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}DAFTAR!
+                        </button>
+                        {submitStatus.message && submitStatus.type === 'error' && (
+                            <div className="mt-4 p-3 rounded-lg text-sm text-center font-sans flex items-center justify-center bg-red-100 text-red-800">
+                                <AlertCircle className="mr-2" /> {submitStatus.message}
+                            </div>
+                        )}
+                    </form>
+                )}
+             </div>
+        </div>
+    );
+}
+
+
+// --- Customer Display View Component ---
+function CustomerDisplayView() {
+    const [queue, setQueue] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const fetchQueue = useCallback(async () => {
+        if (!SCRIPT_URL) {
+            setError("URL Aplikasi tidak diatur.");
+            setIsLoading(false);
+            return;
+        }
+        try {
+            const response = await fetch(SCRIPT_URL);
+            if (!response.ok) throw new Error("Gagal mengambil data antrian.");
+            const data = await response.json();
+            setQueue(data);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchQueue();
+        const intervalId = setInterval(fetchQueue, 10000); // Refresh every 10 seconds
+        return () => clearInterval(intervalId);
+    }, [fetchQueue]);
+
+    const nowServing = queue.length > 0 ? queue[0] : null;
+    const upNext = queue.length > 1 ? queue.slice(1, 6) : []; // Show next 5 people
+
+    return (
+        <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4 font-['Bangers']">
+            <header className="absolute top-8">
+                <KotaklemaLogo size="large" />
+            </header>
+            
+            <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-8 mt-48">
+                <div className="lg:w-2/5 bg-orange-500 text-black p-8 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
+                    <h2 className="text-6xl tracking-widest">NOW SERVING</h2>
+                    <div className="text-9xl font-bold my-6 text-white" style={{ WebkitTextStroke: '4px black' }}>
+                        {nowServing ? nowServing.name.toUpperCase() : '---'}
+                    </div>
+                </div>
+
+                <div className="lg:w-3/5 bg-gray-800 p-8 rounded-3xl border-8 border-black shadow-2xl">
+                    <h2 className="text-6xl tracking-widest text-yellow-400 mb-6">UP NEXT</h2>
+                    {isLoading ? (
+                         <Loader2 className="animate-spin h-12 w-12 text-yellow-400" />
+                    ) : (
+                        <ul className="space-y-4">
+                            {upNext.map((person, index) => (
+                                <li key={person.id} className="text-5xl bg-gray-700 p-4 rounded-xl flex items-center">
+                                    <span className="text-yellow-400 mr-4">{index + 2}.</span>
+                                    <span>{person.name.toUpperCase()}</span>
+                                </li>
+                            ))}
+                            {upNext.length === 0 && !nowServing && (
+                                <p className="text-4xl text-gray-400">Antrian Masih Kosong</p>
+                            )}
+                        </ul>
+                    )}
+                </div>
+            </main>
+            {error && <div className="absolute bottom-4 bg-red-500 text-white p-4 rounded-xl">{error}</div>}
+        </div>
+    );
+}
+
+
+// --- Admin View Component ---
+function AdminView() {
     const [queue, setQueue] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -52,9 +250,7 @@ export default function App() {
         setError(null);
         try {
             const response = await fetch(SCRIPT_URL);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             setQueue(data);
         } catch (e) {
@@ -67,7 +263,7 @@ export default function App() {
 
     useEffect(() => {
         if (!SCRIPT_URL) {
-            setError("URL Apps Script belum diatur di environment variables. (REACT_APP_APPS_SCRIPT_URL)");
+            setError("URL Apps Script belum diatur. (REACT_APP_APPS_SCRIPT_URL)");
             setIsLoading(false);
             return;
         }
@@ -81,9 +277,7 @@ export default function App() {
             await fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action, payload }),
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8',
-                },
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             });
             await fetchQueue();
         } catch (error) {
@@ -92,12 +286,8 @@ export default function App() {
         }
     }, [fetchQueue]);
 
-
     const handleOpenModal = useCallback((person) => {
-        setModalData({
-            person,
-            updateQueue: handleUpdateQueue,
-        });
+        setModalData({ person, updateQueue: handleUpdateQueue });
         setIsModalOpen(true);
     }, [handleUpdateQueue]);
 
@@ -105,20 +295,22 @@ export default function App() {
     const upNext = queue.length > 1 ? queue.slice(1) : [];
 
     return (
-        <div
-            className="bg-white text-zinc-800 min-h-screen font-['Bangers'] flex flex-col items-center p-4 sm:p-6 lg:p-8"
-            style={{
-                backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)',
-                backgroundSize: '10px 10px'
-            }}
-        >
+        <div className="bg-white text-zinc-800 min-h-screen font-['Bangers'] flex flex-col items-center p-4 sm:p-6 lg:p-8"
+            style={{ backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
             <div className="w-full max-w-6xl mx-auto">
                 <header className="text-center mb-10">
                     <KotaklemaLogo />
+                     <p className="font-['Bangers'] text-2xl text-zinc-800 tracking-wider mt-2">Admin KOTAKLEMA PhotoBox</p>
+                     <div className="flex justify-center gap-4 mt-4">
+                        <a href="/display" target="_blank" className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-gray-700 transition-colors">
+                            <Tv size={16} /> Buka Layar Antrian
+                        </a>
+                         <a href="/join" target="_blank" className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-blue-500 transition-colors">
+                            <User size={16} /> Buka Form Pelanggan
+                        </a>
+                     </div>
                 </header>
-
                 {error && <ErrorDisplay message={error} />}
-
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center p-10 text-gray-500">
                         <Loader2 className="animate-spin h-12 w-12 mb-4 text-orange-500" />
@@ -136,59 +328,8 @@ export default function App() {
     );
 }
 
-function JoinQueueForm({ queue, onUpdateQueue }) {
-    const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!name.trim() || !phone.trim()) {
-            setSubmitStatus({ type: 'error', message: 'Harap isi semua kolom.' });
-            return;
-        }
-        setIsSubmitting(true);
-        try {
-            const highestOrder = queue.reduce((max, p) => p.order > max ? p.order : max, 0);
-            
-            await onUpdateQueue('add', {
-                name: name.trim(),
-                phone: phone.trim(),
-                order: highestOrder + 1000,
-            });
-            
-            setSubmitStatus({ type: 'success', message: `${name.trim()} berhasil ditambahkan.` });
-            setName(''); setPhone('');
-        } catch (error) {
-            console.error("Error adding to queue: ", error);
-            setSubmitStatus({ type: 'error', message: error.message });
-        } finally {
-            setIsSubmitting(false);
-            setTimeout(() => setSubmitStatus({ type: '', message: '' }), 4000);
-        }
-    };
-    
-    return (
-        <div className="bg-yellow-400 rounded-2xl shadow-lg p-8 h-full border-4 border-black transform -rotate-1">
-            <h2 className="text-4xl text-black mb-6 flex items-center tracking-wider"><User className="mr-3" />DAFTAR ANTRIAN</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                    <label htmlFor="name" className="block text-lg text-black mb-2 tracking-wide">NAMA PELANGGAN</label>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="TULIS DI SINI..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
-                </div>
-                <div>
-                    <label htmlFor="phone" className="block text-lg text-black mb-2 tracking-wide">NOMOR WHATSAPP</label>
-                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
-                </div>
-                <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg text-black font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
-                    {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}GAS!
-                </button>
-            </form>
-            {submitStatus.message && <div className={`mt-4 p-3 rounded-lg text-sm text-center font-sans flex items-center justify-center ${submitStatus.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}><AlertCircle className="mr-2" /> {submitStatus.message}</div>}
-        </div>
-    );
-}
+// --- Sisa komponen (JoinQueueForm, QueueDisplay, dll) sama seperti versi sebelumnya ---
+// (Kode di bawah ini tidak perlu diubah)
 
 function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
@@ -262,7 +403,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
         setDraggedItem(null);
     };
 
-    // MODIFIKASI: Fungsi untuk aksi notifikasi awal
     const handleNotify = (person) => {
         const template = messageTemplates.initial;
         const message = template.text.replace(/\[NAME\]/g, person.name);
@@ -332,7 +472,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => handleDelete(person.id)} className="p-2 text-white bg-red-600 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Trash2 size={14} /></button>
                                             
-                                            {/* MODIFIKASI: Tombol notifikasi dan tombol balasan dipisah */}
                                             {person.status === 'waiting' && (
                                                 <button onClick={() => handleNotify(person)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all" title="Kirim Notifikasi Panggilan">
                                                     <Phone size={14} />
@@ -410,7 +549,6 @@ function ResponseTimer({ notifiedTimestamp }) {
     );
 }
 
-// MODIFIKASI: Modal sekarang hanya untuk konfirmasi balasan
 function NotificationModal({ isOpen, onClose, data }) {
     const [view, setView] = useState('confirm');
     const [finalTemplate, setFinalTemplate] = useState(null);
