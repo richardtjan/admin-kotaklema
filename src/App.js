@@ -71,11 +71,11 @@ export default function App() {
         case 'admin':
             return <AdminView />;
         default:
-            return null; // Atau loading spinner
+            return null;
     }
 }
 
-// --- Customer Join View Component (NEW) ---
+// --- Customer Join View Component ---
 function CustomerJoinView() {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -93,13 +93,11 @@ function CustomerJoinView() {
         setError(null);
 
         try {
-            // Pertama, ambil data antrian saat ini untuk menentukan nomor urut terakhir
             const queueResponse = await fetch(SCRIPT_URL);
             if (!queueResponse.ok) throw new Error("Gagal mendapatkan data antrian.");
             const currentQueue = await queueResponse.json();
             const highestOrder = currentQueue.reduce((max, p) => p.order > max ? p.order : max, 0);
 
-            // Kirim data baru ke backend
             const payload = {
                 action: 'add',
                 payload: {
@@ -115,14 +113,12 @@ function CustomerJoinView() {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             });
 
-            setSubmitStatus({ type: 'success', message: `Terima kasih, ${name.trim()}! Kamu berhasil masuk antrian.` });
-            setName('');
-            setPhone('');
+            window.location.href = '/display';
+
         } catch (err) {
             console.error("Error joining queue:", err);
             setError("Terjadi kesalahan. Coba lagi nanti.");
             setSubmitStatus({ type: 'error', message: 'Gagal bergabung dengan antrian.' });
-        } finally {
             setIsSubmitting(false);
         }
     };
@@ -133,35 +129,26 @@ function CustomerJoinView() {
                 <header className="text-center mb-6">
                     <KotaklemaLogo />
                 </header>
-                {/* FIX: Menambahkan ErrorDisplay untuk menggunakan state 'error' */}
                 {error && <ErrorDisplay message={error} />}
-                {submitStatus.type === 'success' ? (
-                    <div className="text-center p-4 bg-green-100 text-green-800 rounded-lg border-2 border-green-800">
-                        <h2 className="text-3xl">BERHASIL!</h2>
-                        <p className="font-sans mt-2">{submitStatus.message}</p>
-                        <p className="font-sans mt-2 text-sm">Silakan tunggu giliranmu, ya!</p>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <h2 className="text-4xl text-center tracking-wider">GABUNG ANTRIAN</h2>
+                    <div>
+                        <label htmlFor="name" className="block text-lg mb-2 tracking-wide">NAMA KAMU</label>
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="TULIS DI SINI..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
                     </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <h2 className="text-4xl text-center tracking-wider">GABUNG ANTRIAN</h2>
-                        <div>
-                            <label htmlFor="name" className="block text-lg mb-2 tracking-wide">NAMA KAMU</label>
-                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="TULIS DI SINI..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                    <div>
+                        <label htmlFor="phone" className="block text-lg mb-2 tracking-wide">NOMOR WHATSAPP</label>
+                        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                    </div>
+                    <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                        {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}DAFTAR!
+                    </button>
+                    {submitStatus.message && submitStatus.type === 'error' && (
+                        <div className="mt-4 p-3 rounded-lg text-sm text-center font-sans flex items-center justify-center bg-red-100 text-red-800">
+                            <AlertCircle className="mr-2" /> {submitStatus.message}
                         </div>
-                        <div>
-                            <label htmlFor="phone" className="block text-lg mb-2 tracking-wide">NOMOR WHATSAPP</label>
-                            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
-                        </div>
-                        <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
-                            {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}DAFTAR!
-                        </button>
-                        {submitStatus.message && submitStatus.type === 'error' && (
-                            <div className="mt-4 p-3 rounded-lg text-sm text-center font-sans flex items-center justify-center bg-red-100 text-red-800">
-                                <AlertCircle className="mr-2" /> {submitStatus.message}
-                            </div>
-                        )}
-                    </form>
-                )}
+                    )}
+                </form>
              </div>
         </div>
     );
@@ -194,12 +181,12 @@ function CustomerDisplayView() {
 
     useEffect(() => {
         fetchQueue();
-        const intervalId = setInterval(fetchQueue, 10000); // Refresh every 10 seconds
+        const intervalId = setInterval(fetchQueue, 5000); // Refresh lebih cepat untuk timer
         return () => clearInterval(intervalId);
     }, [fetchQueue]);
 
     const nowServing = queue.length > 0 ? queue[0] : null;
-    const upNext = queue.length > 1 ? queue.slice(1, 6) : []; // Show next 5 people
+    const upNext = queue.length > 1 ? queue.slice(1, 6) : [];
 
     return (
         <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4 font-['Bangers']">
@@ -209,14 +196,18 @@ function CustomerDisplayView() {
             
             <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-8 mt-48">
                 <div className="lg:w-2/5 bg-orange-500 text-black p-8 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
-                    <h2 className="text-6xl tracking-widest">NOW SERVING</h2>
-                    <div className="text-9xl font-bold my-6 text-white" style={{ WebkitTextStroke: '4px black' }}>
+                    {/* MODIFIKASI: Terjemahan teks */}
+                    <h2 className="text-6xl tracking-widest">SEKARANG GILIRAN</h2>
+                    <div className="text-9xl font-bold my-4 text-white" style={{ WebkitTextStroke: '4px black' }}>
                         {nowServing ? nowServing.name.toUpperCase() : '---'}
                     </div>
+                    {/* MODIFIKASI: Menambahkan timer di display view */}
+                    {nowServing && <TimerDisplay person={nowServing} />}
                 </div>
 
                 <div className="lg:w-3/5 bg-gray-800 p-8 rounded-3xl border-8 border-black shadow-2xl">
-                    <h2 className="text-6xl tracking-widest text-yellow-400 mb-6">UP NEXT</h2>
+                    {/* MODIFIKASI: Terjemahan teks */}
+                    <h2 className="text-6xl tracking-widest text-yellow-400 mb-6">ANTRIAN BERIKUTNYA</h2>
                     {isLoading ? (
                          <Loader2 className="animate-spin h-12 w-12 text-yellow-400" />
                     ) : (
@@ -329,8 +320,7 @@ function AdminView() {
     );
 }
 
-// --- Sisa komponen (JoinQueueForm, QueueDisplay, dll) ---
-// (Kode di bawah ini tidak perlu diubah)
+// --- Sisa komponen ---
 
 function JoinQueueForm({ queue, onUpdateQueue }) {
     const [name, setName] = useState('');
@@ -385,28 +375,28 @@ function JoinQueueForm({ queue, onUpdateQueue }) {
 }
 
 function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
-    const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
-    const [timerState, setTimerState] = useState('idle');
     const [draggedItem, setDraggedItem] = useState(null);
+    const [localTimeLeft, setLocalTimeLeft] = useState(TURN_DURATION_MS);
 
-    useEffect(() => {
-        if (timerState !== 'running') return;
-        const interval = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 1000) { clearInterval(interval); setTimerState('paused'); return 0; }
-                return prev - 1000;
-            });
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [timerState]);
+    const handleStart = () => {
+        if (!nowServing) return;
+        onUpdateQueue('updateTimer', {
+            id: nowServing.id,
+            timerState: 'running',
+            timerStartTime: Date.now(),
+            timePaused: localTimeLeft,
+        });
+    };
 
-    useEffect(() => {
-        setTimeLeft(TURN_DURATION_MS);
-        setTimerState('idle');
-    }, [nowServing?.id]);
-
-    const handleStart = () => { if (timeLeft > 0) setTimerState('running'); };
-    const handlePause = () => setTimerState('paused');
+    const handlePause = () => {
+        if (!nowServing) return;
+        onUpdateQueue('updateTimer', {
+            id: nowServing.id,
+            timerState: 'paused',
+            timerStartTime: nowServing.timerStartTime,
+            timePaused: localTimeLeft,
+        });
+    };
     
     const handleFinish = () => {
         if (!nowServing) return;
@@ -486,11 +476,18 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                 {nowServing ? (
                     <>
                         <p className="text-7xl font-bold text-white my-3 truncate" style={{ WebkitTextStroke: '2px black' }}>{nowServing.name}</p>
-                        <TimerDisplay timeLeft={timeLeft} />
+                        {/* MODIFIKASI: Timer sekarang dikontrol oleh data dari sheet */}
+                        <TimerDisplay person={nowServing} onTimeUpdate={setLocalTimeLeft} />
                         <div className="mt-6 grid grid-cols-3 gap-3">
-                            <button onClick={handleStart} className="flex items-center justify-center gap-2 px-4 py-3 text-xl text-white bg-green-600 rounded-lg shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all disabled:opacity-50" disabled={timeLeft === 0 || timerState === 'running'}><Play size={16}/>MULAI</button>
-                            <button onClick={handlePause} className="flex items-center justify-center gap-2 px-4 py-3 text-xl text-white bg-yellow-500 rounded-lg shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all"><Pause size={16}/>JEDA</button>
-                            <button onClick={handleFinish} className="flex items-center justify-center gap-2 px-4 py-3 text-xl text-white bg-red-600 rounded-lg shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all"><CheckCircle size={16} />SELESAI</button>
+                            <button onClick={handleStart} className="flex items-center justify-center gap-2 px-4 py-3 text-xl text-white bg-green-600 rounded-lg shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all" disabled={nowServing.timerState === 'running'}>
+                                <Play size={16}/>MULAI
+                            </button>
+                            <button onClick={handlePause} className="flex items-center justify-center gap-2 px-4 py-3 text-xl text-white bg-yellow-500 rounded-lg shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all" disabled={nowServing.timerState !== 'running'}>
+                                <Pause size={16}/>JEDA
+                            </button>
+                            <button onClick={handleFinish} className="flex items-center justify-center gap-2 px-4 py-3 text-xl text-white bg-red-600 rounded-lg shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                                <CheckCircle size={16} />SELESAI
+                            </button>
                         </div>
                     </>
                 ) : (
@@ -556,9 +553,45 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     );
 }
 
-function TimerDisplay({ timeLeft }) {
+// MODIFIKASI: Timer sekarang menjadi komponen yang lebih 'pintar'
+function TimerDisplay({ person, onTimeUpdate }) {
+    const { timerState, timerStartTime, timePaused } = person;
+    const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
+
+    useEffect(() => {
+        let interval;
+
+        const tick = () => {
+            const startTime = Number(timerStartTime);
+            const elapsed = Date.now() - startTime;
+            const newTimeLeft = TURN_DURATION_MS - elapsed;
+            setTimeLeft(Math.max(0, newTimeLeft));
+            if (onTimeUpdate) {
+                onTimeUpdate(Math.max(0, newTimeLeft));
+            }
+        };
+
+        if (timerState === 'running') {
+            tick(); // Panggil sekali agar langsung update
+            interval = setInterval(tick, 1000);
+        } else if (timerState === 'paused') {
+            setTimeLeft(Number(timePaused));
+            if (onTimeUpdate) {
+                onTimeUpdate(Number(timePaused));
+            }
+        } else { // idle
+            setTimeLeft(TURN_DURATION_MS);
+             if (onTimeUpdate) {
+                onTimeUpdate(TURN_DURATION_MS);
+            }
+        }
+
+        return () => clearInterval(interval);
+    }, [timerState, timerStartTime, timePaused, onTimeUpdate]);
+
     const minutes = Math.floor((timeLeft / 1000) / 60);
     const seconds = Math.floor((timeLeft / 1000) % 60);
+    
     return (
         <div className="flex items-center justify-center gap-2 text-5xl bg-white p-3 rounded-lg border-4 border-black shadow-inner">
             <Clock className="h-10 w-10 text-yellow-500" />
