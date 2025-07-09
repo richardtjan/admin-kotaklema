@@ -86,20 +86,24 @@ function CustomerJoinView() {
     const [error, setError] = useState(null);
 
     const handlePhoneChange = (e) => {
-        const rawValue = e.target.value;
-        // Hanya izinkan angka
-        let numericValue = rawValue.replace(/\D/g, '');
+        let value = e.target.value.replace(/\D/g, ''); // Hanya angka
 
-        // Otomatis ganti 0 di depan dengan 62
-        if (numericValue.startsWith('0')) {
-            numericValue = '62' + numericValue.substring(1);
+        // Jika user menghapus semuanya, kosongkan state
+        if (value === '') {
+            setPhone('');
+            return;
         }
-        // Jika tidak dimulai dengan 62, tambahkan 62 (kecuali kosong)
-        else if (numericValue.length > 0 && !numericValue.startsWith('62')) {
-            numericValue = '62' + numericValue;
+
+        // Jika dimulai dengan 0, ganti dengan 62
+        if (value.startsWith('0')) {
+            value = '62' + value.substring(1);
+        } 
+        // Jika tidak dimulai dengan 62, tambahkan 62 di depan
+        else if (!value.startsWith('62')) {
+            value = '62' + value;
         }
         
-        setPhone(numericValue);
+        setPhone(value);
     };
 
     const handleSubmit = async (e) => {
@@ -349,7 +353,6 @@ function AdminView() {
                 <header className="text-center mb-10">
                     <KotaklemaLogo />
                      <p className="font-['Bangers'] text-2xl text-zinc-800 tracking-wider mt-2">Admin KOTAKLEMA PhotoBox</p>
-                     {/* REVISI: Mengubah gaya tombol agar sesuai dengan tema komik */}
                      <div className="flex justify-center gap-4 mt-4 font-['Bangers'] tracking-wider">
                         <a href="/display" target="_blank" className="inline-flex items-center gap-2 px-6 py-3 border-2 border-black rounded-lg text-lg bg-gray-800 text-white shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
                             <Tv size={20} /> Buka Layar Antrian
@@ -386,17 +389,21 @@ function JoinQueueForm({ queue, onUpdateQueue }) {
     const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
 
     const handlePhoneChange = (e) => {
-        const rawValue = e.target.value;
-        let numericValue = rawValue.replace(/\D/g, '');
+        let value = e.target.value.replace(/\D/g, '');
 
-        if (numericValue.startsWith('0')) {
-            numericValue = '62' + numericValue.substring(1);
+        if (value === '') {
+            setPhone('');
+            return;
         }
-        else if (numericValue.length > 0 && !numericValue.startsWith('62')) {
-            numericValue = '62' + numericValue;
+
+        if (value.startsWith('0')) {
+            value = '62' + value.substring(1);
+        } 
+        else if (!value.startsWith('62')) {
+            value = '62' + value;
         }
         
-        setPhone(numericValue);
+        setPhone(value);
     };
 
     const handleSubmit = async (e) => {
