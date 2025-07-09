@@ -84,6 +84,23 @@ function CustomerJoinView() {
     const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
     const [error, setError] = useState(null);
 
+    const handlePhoneChange = (e) => {
+        const rawValue = e.target.value;
+        // Hanya izinkan angka
+        let numericValue = rawValue.replace(/\D/g, '');
+
+        // Otomatis ganti 0 di depan dengan 62
+        if (numericValue.startsWith('0')) {
+            numericValue = '62' + numericValue.substring(1);
+        }
+        // Jika tidak dimulai dengan 62, tambahkan 62 (kecuali kosong)
+        else if (numericValue.length > 0 && !numericValue.startsWith('62')) {
+            numericValue = '62' + numericValue;
+        }
+        
+        setPhone(numericValue);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!name.trim() || !phone.trim()) {
@@ -140,7 +157,8 @@ function CustomerJoinView() {
                         <CheckCircle className="w-16 h-16 mx-auto text-green-600" />
                         <h2 className="text-3xl mt-4">BERHASIL!</h2>
                         <p className="font-sans mt-2">{submitStatus.message}</p>
-                        <p className="font-sans mt-2 text-sm">Notifikasi giliran akan dikirimkan via WhatsApp.</p>
+                        {/* REVISI: Mengganti pesan notifikasi */}
+                        <p className="font-sans mt-2 text-sm">Nanti kami akan menghubungi kembali via WhatsApp.</p>
                         <a href="/display" className="mt-6 w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
                            <Tv className="h-6 w-6 mr-3" /> LIHAT LAYAR ANTRIAN
                         </a>
@@ -154,7 +172,8 @@ function CustomerJoinView() {
                         </div>
                         <div>
                             <label htmlFor="phone" className="block text-lg mb-2 tracking-wide">NOMOR WHATSAPP</label>
-                            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                            {/* REVISI: Menggunakan input dengan format otomatis */}
+                            <input type="tel" value={phone} onChange={handlePhoneChange} placeholder="62812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
                         </div>
                         <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
                             {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}DAFTAR!
@@ -166,7 +185,6 @@ function CustomerJoinView() {
                         )}
                     </form>
                 )}
-                 {/* FIX: Menggunakan URL Instagram yang benar */}
                 <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="mt-8 flex items-center justify-center gap-2 text-black hover:text-orange-600 transition-colors font-sans" title="Follow us on Instagram">
                     <Instagram size={20} />
                     <span className="font-bold">@kotaklemaphoto</span>
@@ -212,11 +230,16 @@ function CustomerDisplayView() {
 
     return (
         <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4 font-['Bangers']">
-            <header className="absolute top-8">
+            <header className="absolute top-8 text-center">
                 <KotaklemaLogo size="large" />
+                {/* REVISI: Memindahkan link Instagram ke header */}
+                <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
+                    <Instagram size={32} />
+                    <span>@kotaklemaphoto</span>
+                </a>
             </header>
             
-            <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-8 mt-48">
+            <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-8 mt-48 pt-24">
                 <div className="lg:w-2/5 bg-orange-500 text-black p-8 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
                     <h2 className="text-6xl tracking-widest">SEKARANG GILIRAN</h2>
                     <div className="text-9xl font-bold my-4 text-white" style={{ WebkitTextStroke: '4px black' }}>
@@ -245,13 +268,6 @@ function CustomerDisplayView() {
                 </div>
             </main>
             {error && <div className="absolute bottom-4 left-4 bg-red-500 text-white p-4 rounded-xl">{error}</div>}
-             {/* FIX: Menggunakan URL Instagram yang benar */}
-            <footer className="absolute bottom-6 text-center w-full">
-                <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
-                    <Instagram size={32} />
-                    <span>@kotaklemaphoto</span>
-                </a>
-            </footer>
         </div>
     );
 }
@@ -354,6 +370,20 @@ function JoinQueueForm({ queue, onUpdateQueue }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
 
+    const handlePhoneChange = (e) => {
+        const rawValue = e.target.value;
+        let numericValue = rawValue.replace(/\D/g, '');
+
+        if (numericValue.startsWith('0')) {
+            numericValue = '62' + numericValue.substring(1);
+        }
+        else if (numericValue.length > 0 && !numericValue.startsWith('62')) {
+            numericValue = '62' + numericValue;
+        }
+        
+        setPhone(numericValue);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!name.trim() || !phone.trim()) {
@@ -389,7 +419,7 @@ function JoinQueueForm({ queue, onUpdateQueue }) {
                 </div>
                 <div>
                     <label htmlFor="phone" className="block text-lg text-black mb-2 tracking-wide">NOMOR WHATSAPP</label>
-                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                    <input type="tel" value={phone} onChange={handlePhoneChange} placeholder="62812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
                 </div>
                 <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg text-black font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
                     {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}GAS!
