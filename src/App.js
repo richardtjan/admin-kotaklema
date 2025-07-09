@@ -33,13 +33,8 @@ const KotaklemaLogo = () => (
     </div>
 );
 
-// MODIFIKASI: Mengganti emoji dengan teks yang lebih aman untuk WhatsApp
 const messageTemplates = {
-    initial: [
-        { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' }
-    ],
-    reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Kami tunggu kedatangannya di Photobooth.`, updatesStatusTo: 'confirmed' },
-    reply_no: { id: 'resp_no', title: 'Balasan untuk "TIDAK"', text: `Baik, Kak [NAME], terima kasih informasinya. Kami akan memberitahu Anda kembali jika sudah ada giliran yang tersedia.`, updatesStatusTo: 'waiting' }
+    initial: { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' }
 };
 
 // --- Main App Component ---
@@ -48,7 +43,7 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalData, setModalData] = useState({ person: null, templates: [], updateStatus: null });
+    const [modalData, setModalData] = useState({ person: null, updateQueue: null });
 
     const fetchQueue = useCallback(async () => {
         setError(null);
@@ -95,10 +90,9 @@ export default function App() {
     }, [fetchQueue]);
 
 
-    const handleOpenModal = useCallback((person, templates) => {
+    const handleOpenModal = useCallback((person) => {
         setModalData({
             person,
-            templates: Array.isArray(templates) ? templates : [templates],
             updateQueue: handleUpdateQueue,
         });
         setIsModalOpen(true);
@@ -197,7 +191,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
     const [timerState, setTimerState] = useState('idle');
     const [draggedItem, setDraggedItem] = useState(null);
-    const [dropTargetId, setDropTargetId] = useState(null);
 
     useEffect(() => {
         if (timerState !== 'running') return;
@@ -236,19 +229,35 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
         onUpdateQueue('delete', { id: personId });
     };
 
-    const handleDragEnd = async () => {
-        if (!draggedItem || !dropTargetId) {
-            setDraggedItem(null);
-            setDropTargetId(null);
-            return;
-        }
-        const targetItem = upNext.find(item => item.id === dropTargetId);
-        const targetIndex = upNext.indexOf(targetItem);
-        const prevItem = upNext[targetIndex - 1];
-        const newOrder = prevItem ? (prevItem.order + targetItem.order) / 2 : targetItem.order / 2;
-        onUpdateQueue('update', { id: draggedItem.id, newOrder });
+    const handleDragStart = (e, person) => {
+        setDraggedItem(person);
+        // Memberi sedikit efek visual saat item di-drag
+        e.currentTarget.style.opacity = '0.5';
+    };
+
+    const handleDragEnd = (e) => {
+        e.currentTarget.style.opacity = '1';
         setDraggedItem(null);
-        setDropTargetId(null);
+    };
+
+    const handleDrop = async (targetPerson) => {
+        if (!draggedItem || draggedItem.id === targetPerson.id) return;
+        
+        const allItems = [nowServing, ...upNext].filter(Boolean);
+        const draggedIndex = allItems.findIndex(p => p.id === draggedItem.id);
+        const targetIndex = allItems.findIndex(p => p.id === targetPerson.id);
+
+        let newOrder;
+        if (draggedIndex < targetIndex) { // Drag ke bawah
+            const afterTarget = allItems[targetIndex + 1];
+            newOrder = afterTarget ? (targetPerson.order + afterTarget.order) / 2 : targetPerson.order + 1000;
+        } else { // Drag ke atas
+            const beforeTarget = allItems[targetIndex - 1];
+            newOrder = beforeTarget ? (targetPerson.order + beforeTarget.order) / 2 : targetPerson.order / 2;
+        }
+
+        await onUpdateQueue('update', { id: draggedItem.id, newOrder });
+        setDraggedItem(null);
     };
 
     const getStatusIndicator = (status, notifiedTimestamp) => {
@@ -287,33 +296,37 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                     {upNext.length > 0 ? (
                         <ul className="space-y-2">
                             {upNext.map((person) => (
-                                <React.Fragment key={person.id}>
-                                    {dropTargetId === person.id && <div className="h-1.5 my-1 bg-yellow-400 rounded-full" />}
-                                    <li 
-                                        data-id={person.id}
-                                        className={`bg-white p-4 rounded-lg transition-all duration-300 border-2 border-black ${draggedItem?.id === person.id ? 'opacity-30' : ''}`}
-                                        draggable onDragStart={() => setDraggedItem(person)} onDragEnd={handleDragEnd}
-                                        onDragEnter={() => setDropTargetId(person.id)} onDragLeave={() => setDropTargetId(null)}
-                                        onDragOver={(e) => e.preventDefault()}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center cursor-grab">
-                                                <GripVertical className="text-gray-400 mr-3" />
-                                                <span className="text-2xl font-bold text-zinc-800">{person.name}</span>
+                                <li 
+                                    key={person.id}
+                                    className="bg-white p-4 rounded-lg border-2 border-black transition-all"
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={() => handleDrop(person)}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center">
+                                            {/* FIX: Drag handle hanya pada ikon grip */}
+                                            <div 
+                                                draggable 
+                                                onDragStart={(e) => handleDragStart(e, person)}
+                                                onDragEnd={handleDragEnd}
+                                                className="cursor-grab p-2 -ml-2"
+                                            >
+                                                <GripVertical className="text-gray-400" />
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => handleDelete(person.id)} className="p-2 text-white bg-red-600 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Trash2 size={14} /></button>
-                                                <button onClick={() => onOpenModal(person, messageTemplates.initial)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Phone size={14} /></button>
-                                                <button onClick={() => handleFinishAndServe(person)} className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all">
-                                                    <ChevronsRight size={14} /> LANJUT
-                                                </button>
-                                            </div>
+                                            <span className="text-2xl font-bold text-zinc-800 ml-1">{person.name}</span>
                                         </div>
-                                        <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300 flex items-center justify-between min-h-[34px]">
-                                            {getStatusIndicator(person.status, person.notifiedTimestamp)}
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleDelete(person.id)} className="p-2 text-white bg-red-600 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Trash2 size={14} /></button>
+                                            <button onClick={() => onOpenModal(person)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Phone size={14} /></button>
+                                            <button onClick={() => handleFinishAndServe(person)} className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all">
+                                                <ChevronsRight size={14} /> LANJUT
+                                            </button>
                                         </div>
-                                    </li>
-                                </React.Fragment>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300 flex items-center justify-between min-h-[34px]">
+                                        {getStatusIndicator(person.status, person.notifiedTimestamp)}
+                                    </div>
+                                </li>
                             ))}
                         </ul>
                     ) : (
@@ -336,12 +349,16 @@ function TimerDisplay({ timeLeft }) {
     );
 }
 
+// FIX: Pastikan timestamp diubah menjadi angka sebelum digunakan
 function ResponseTimer({ notifiedTimestamp }) {
     const [timeLeft, setTimeLeft] = useState(RESPONSE_WAIT_MS);
 
     useEffect(() => {
+        const startTime = Number(notifiedTimestamp);
+        if (isNaN(startTime)) return; // Jangan lakukan apa-apa jika timestamp tidak valid
+
         const calculateTimeLeft = () => {
-            const elapsed = Date.now() - notifiedTimestamp;
+            const elapsed = Date.now() - startTime;
             return Math.max(0, RESPONSE_WAIT_MS - elapsed);
         };
         
@@ -368,66 +385,44 @@ function ResponseTimer({ notifiedTimestamp }) {
     );
 }
 
+// FIX: Menyederhanakan modal
 function NotificationModal({ isOpen, onClose, data }) {
-    const [view, setView] = useState('list');
-    const [finalTemplate, setFinalTemplate] = useState(null);
-    const [copySuccess, setCopySuccess] = useState('');
-
-    const handleInitialAction = useCallback((template) => {
-        if (template.id === 'cf1') {
-            const message = template.text.replace(/\[NAME\]/g, data.person.name);
-            window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-            data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo, notifiedTimestamp: Date.now() });
-            setView('confirm');
-        } else {
-            const message = template.text.replace(/\[NAME\]/g, data.person.name);
-            window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-            if (template.updatesStatusTo) {
-                data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo });
-            }
-            onClose();
-        }
-    }, [data, onClose]);
-
     useEffect(() => {
-        if (isOpen) {
-            if (data.templates.length === 1 && data.templates[0].id === 'cf1') {
-                handleInitialAction(data.templates[0]);
-            } else {
-                setView('list');
-            }
-            setFinalTemplate(null);
-            setCopySuccess('');
+        if (isOpen && data.person) {
+            // Aksi utama: Buka WhatsApp
+            const template = messageTemplates.initial;
+            const message = template.text.replace(/\[NAME\]/g, data.person.name);
+            window.open(`https://wa.me/${data.person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+            
+            // Update status dan timestamp di backend
+            data.updateQueue('update', { 
+                id: data.person.id, 
+                newStatus: template.updatesStatusTo, 
+                notifiedTimestamp: Date.now() 
+            });
         }
-    }, [isOpen, data.templates, handleInitialAction]);
+    }, [isOpen, data]); // Dijalankan setiap kali modal dibuka
 
     if (!isOpen || !data.person) return null;
 
     const handleConfirmAction = (replyType) => {
-        const template = replyType === 'yes' ? messageTemplates.reply_yes : messageTemplates.reply_no;
-        setFinalTemplate(template);
-        data.updateQueue('update', { id: data.person.id, newStatus: template.updatesStatusTo });
-        setView('final');
-    };
-    
-    const handleCopyAction = (template) => {
-        const message = template.text.replace(/\[NAME\]/g, data.person.name);
-        navigator.clipboard.writeText(message).then(() => {
-            setCopySuccess('Pesan berhasil disalin!');
-            setTimeout(() => {
-                onClose();
-            }, 1200);
-        }).catch(() => {
-            setCopySuccess('Gagal menyalin pesan.');
-        });
+        const newStatus = replyType === 'yes' ? 'confirmed' : 'waiting';
+        data.updateQueue('update', { id: data.person.id, newStatus });
+        onClose(); // Langsung tutup modal setelah aksi
     };
 
-    const renderContent = () => {
-        switch (view) {
-            case 'confirm':
-                return (
+    return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border-4 border-black">
+                <div className="p-6 border-b-4 border-black flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-black tracking-wider">Tandai Respon: {data.person.name}</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-black rounded-full p-1 hover:bg-gray-200 transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+                <div className="p-6">
                     <div className="text-center">
-                        <p className="font-sans text-gray-600 mb-4">Setelah mengirim notifikasi, tandai respon pelanggan di sini.</p>
+                        <p className="font-sans text-gray-600 mb-4">Pesan notifikasi telah dikirim. Tandai respon dari pelanggan di bawah ini.</p>
                         <div className="grid grid-cols-2 gap-4">
                             <button onClick={() => handleConfirmAction('yes')} className="w-full px-4 py-3 font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
                                 BALAS "YA"
@@ -437,34 +432,6 @@ function NotificationModal({ isOpen, onClose, data }) {
                             </button>
                         </div>
                     </div>
-                );
-            case 'final':
-                return (
-                     <div className="bg-gray-50 p-4 rounded-lg border-2 border-black">
-                        <h3 className="font-semibold text-orange-600 text-xl tracking-wide">{finalTemplate.title}</h3>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap font-sans mt-2">{finalTemplate.text.replace(/\[NAME\]/g, data.person.name)}</p>
-                        <button onClick={() => handleCopyAction(finalTemplate)} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 font-bold text-white bg-blue-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
-                           <Copy size={16} /> COPY PESAN
-                        </button>
-                    </div>
-                );
-            default:
-                return <div className="text-center font-sans text-gray-500">Memproses...</div>;
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border-4 border-black">
-                <div className="p-6 border-b-4 border-black flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-black tracking-wider">NOTIFIKASI: {data.person.name}</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-black rounded-full p-1 hover:bg-gray-200 transition-colors">
-                        <X size={24} />
-                    </button>
-                </div>
-                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                    {renderContent()}
-                    {copySuccess && <p className="text-center text-sm text-green-600 pt-2 font-sans">{copySuccess}</p>}
                 </div>
             </div>
         </div>
