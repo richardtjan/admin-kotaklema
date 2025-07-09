@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2, MessageSquarePlus, Tv } from 'lucide-react';
+// MODIFIKASI: Menambahkan ikon Instagram
+import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2, MessageSquarePlus, Tv, Instagram } from 'lucide-react';
 
 // --- Constants ---
 const TURN_DURATION_MINUTES = 7;
@@ -75,7 +76,7 @@ export default function App() {
     }
 }
 
-// --- Customer Join View Component ---
+// --- Customer Join View Component (NEW) ---
 function CustomerJoinView() {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -113,12 +114,15 @@ function CustomerJoinView() {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             });
 
-            window.location.href = '/display';
+            setSubmitStatus({ type: 'success', message: `Terima kasih, ${name.trim()}! Kamu berhasil masuk antrian.` });
+            setName('');
+            setPhone('');
 
         } catch (err) {
             console.error("Error joining queue:", err);
             setError("Terjadi kesalahan. Coba lagi nanti.");
             setSubmitStatus({ type: 'error', message: 'Gagal bergabung dengan antrian.' });
+        } finally {
             setIsSubmitting(false);
         }
     };
@@ -130,25 +134,43 @@ function CustomerJoinView() {
                     <KotaklemaLogo />
                 </header>
                 {error && <ErrorDisplay message={error} />}
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <h2 className="text-4xl text-center tracking-wider">GABUNG ANTRIAN</h2>
-                    <div>
-                        <label htmlFor="name" className="block text-lg mb-2 tracking-wide">NAMA KAMU</label>
-                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="TULIS DI SINI..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                
+                {submitStatus.type === 'success' ? (
+                    <div className="text-center p-4">
+                        <CheckCircle className="w-16 h-16 mx-auto text-green-600" />
+                        <h2 className="text-3xl mt-4">BERHASIL!</h2>
+                        <p className="font-sans mt-2">{submitStatus.message}</p>
+                        <p className="font-sans mt-2 text-sm">Notifikasi giliran akan dikirimkan via WhatsApp.</p>
+                        <a href="/display" className="mt-6 w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                           <Tv className="h-6 w-6 mr-3" /> LIHAT LAYAR ANTRIAN
+                        </a>
                     </div>
-                    <div>
-                        <label htmlFor="phone" className="block text-lg mb-2 tracking-wide">NOMOR WHATSAPP</label>
-                        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
-                    </div>
-                    <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
-                        {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}DAFTAR!
-                    </button>
-                    {submitStatus.message && submitStatus.type === 'error' && (
-                        <div className="mt-4 p-3 rounded-lg text-sm text-center font-sans flex items-center justify-center bg-red-100 text-red-800">
-                            <AlertCircle className="mr-2" /> {submitStatus.message}
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <h2 className="text-4xl text-center tracking-wider">GABUNG ANTRIAN</h2>
+                        <div>
+                            <label htmlFor="name" className="block text-lg mb-2 tracking-wide">NAMA KAMU</label>
+                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="TULIS DI SINI..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
                         </div>
-                    )}
-                </form>
+                        <div>
+                            <label htmlFor="phone" className="block text-lg mb-2 tracking-wide">NOMOR WHATSAPP</label>
+                            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
+                        </div>
+                        <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                            {isSubmitting ? <Loader2 className="animate-spin h-6 w-6 mr-3" /> : <Send className="h-6 w-6 mr-3" />}DAFTAR!
+                        </button>
+                        {submitStatus.message && submitStatus.type === 'error' && (
+                            <div className="mt-4 p-3 rounded-lg text-sm text-center font-sans flex items-center justify-center bg-red-100 text-red-800">
+                                <AlertCircle className="mr-2" /> {submitStatus.message}
+                            </div>
+                        )}
+                    </form>
+                )}
+                 {/* MODIFIKASI: Memindahkan link Instagram ke posisi yang lebih menonjol */}
+                <a href="https://www.instagram.com/kotaklemaphoto" target="_blank" rel="noopener noreferrer" className="mt-8 flex items-center justify-center gap-2 text-black hover:text-orange-600 transition-colors font-sans" title="Follow us on Instagram">
+                    <Instagram size={20} />
+                    <span className="font-bold">@kotaklemaphoto</span>
+                </a>
              </div>
         </div>
     );
@@ -181,7 +203,7 @@ function CustomerDisplayView() {
 
     useEffect(() => {
         fetchQueue();
-        const intervalId = setInterval(fetchQueue, 5000); // Refresh lebih cepat untuk timer
+        const intervalId = setInterval(fetchQueue, 5000);
         return () => clearInterval(intervalId);
     }, [fetchQueue]);
 
@@ -196,17 +218,14 @@ function CustomerDisplayView() {
             
             <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-8 mt-48">
                 <div className="lg:w-2/5 bg-orange-500 text-black p-8 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
-                    {/* MODIFIKASI: Terjemahan teks */}
                     <h2 className="text-6xl tracking-widest">SEKARANG GILIRAN</h2>
                     <div className="text-9xl font-bold my-4 text-white" style={{ WebkitTextStroke: '4px black' }}>
                         {nowServing ? nowServing.name.toUpperCase() : '---'}
                     </div>
-                    {/* MODIFIKASI: Menambahkan timer di display view */}
                     {nowServing && <TimerDisplay person={nowServing} />}
                 </div>
 
                 <div className="lg:w-3/5 bg-gray-800 p-8 rounded-3xl border-8 border-black shadow-2xl">
-                    {/* MODIFIKASI: Terjemahan teks */}
                     <h2 className="text-6xl tracking-widest text-yellow-400 mb-6">ANTRIAN BERIKUTNYA</h2>
                     {isLoading ? (
                          <Loader2 className="animate-spin h-12 w-12 text-yellow-400" />
@@ -225,7 +244,14 @@ function CustomerDisplayView() {
                     )}
                 </div>
             </main>
-            {error && <div className="absolute bottom-4 bg-red-500 text-white p-4 rounded-xl">{error}</div>}
+            {error && <div className="absolute bottom-4 left-4 bg-red-500 text-white p-4 rounded-xl">{error}</div>}
+             {/* MODIFIKASI: Memindahkan link Instagram ke footer yang menonjol */}
+            <footer className="absolute bottom-6 text-center w-full">
+                <a href="https://www.instagram.com/kotaklemaphoto" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
+                    <Instagram size={32} />
+                    <span>@kotaklemaphoto</span>
+                </a>
+            </footer>
         </div>
     );
 }
@@ -476,7 +502,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                 {nowServing ? (
                     <>
                         <p className="text-7xl font-bold text-white my-3 truncate" style={{ WebkitTextStroke: '2px black' }}>{nowServing.name}</p>
-                        {/* MODIFIKASI: Timer sekarang dikontrol oleh data dari sheet */}
                         <TimerDisplay person={nowServing} onTimeUpdate={setLocalTimeLeft} />
                         <div className="mt-6 grid grid-cols-3 gap-3">
                             <button onClick={handleStart} className="flex items-center justify-center gap-2 px-4 py-3 text-xl text-white bg-green-600 rounded-lg shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all" disabled={nowServing.timerState === 'running'}>
@@ -553,7 +578,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     );
 }
 
-// MODIFIKASI: Timer sekarang menjadi komponen yang lebih 'pintar'
 function TimerDisplay({ person, onTimeUpdate }) {
     const { timerState, timerStartTime, timePaused } = person;
     const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
@@ -572,7 +596,7 @@ function TimerDisplay({ person, onTimeUpdate }) {
         };
 
         if (timerState === 'running') {
-            tick(); // Panggil sekali agar langsung update
+            tick();
             interval = setInterval(tick, 1000);
         } else if (timerState === 'paused') {
             setTimeLeft(Number(timePaused));
