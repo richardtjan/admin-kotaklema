@@ -225,18 +225,15 @@ function CustomerDisplayView() {
     }, [fetchQueue]);
 
     const nowServing = queue.length > 0 ? queue[0] : null;
-    // REVISI: Mengambil 13 antrian berikutnya (nomor 2-14)
     const upNext = queue.length > 1 ? queue.slice(1, 14) : []; 
     
-    // REVISI: Membagi antrian berikutnya menjadi dua kolom
     const upNextCol1 = upNext.slice(0, 7);
     const upNextCol2 = upNext.slice(7, 13);
 
 
     return (
-        <div className="bg-gray-900 text-white min-h-screen w-full flex flex-col items-center p-6 font-['Bangers']">
-            {/* Header Section */}
-            <header className="w-full max-w-6xl text-center mb-6">
+        <div className="bg-gray-900 text-white min-h-screen w-full flex flex-col items-center p-4 md:p-6 font-['Bangers']">
+            <header className="w-full max-w-7xl text-center pt-4">
                 <KotaklemaLogo size="large" />
                 <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
                     <Instagram size={32} />
@@ -244,38 +241,34 @@ function CustomerDisplayView() {
                 </a>
             </header>
             
-            <main className="w-full max-w-6xl flex-grow flex flex-col gap-6">
-                {/* Now Serving Section */}
-                <div className="bg-orange-500 text-black p-6 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
+            <main className="w-full max-w-7xl flex-grow flex flex-col lg:flex-row gap-6 mt-6">
+                <div className="lg:w-2/5 bg-orange-500 text-black p-6 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
                     <h2 className="text-5xl md:text-6xl tracking-widest">SEKARANG GILIRAN</h2>
-                    <div className="text-8xl md:text-9xl font-bold my-2 text-white" style={{ WebkitTextStroke: '4px black' }}>
+                    <div className="text-8xl md:text-9xl font-bold my-4 text-white flex-grow flex items-center justify-center text-center" style={{ WebkitTextStroke: '4px black' }}>
                         {nowServing ? nowServing.name.toUpperCase() : '---'}
                     </div>
                     {nowServing && <TimerDisplay person={nowServing} />}
                 </div>
 
-                {/* Up Next Section */}
-                <div className="flex-grow bg-gray-800 p-6 rounded-3xl border-8 border-black shadow-2xl">
+                <div className="lg:w-3/5 bg-gray-800 p-6 rounded-3xl border-8 border-black shadow-2xl flex flex-col">
                     <h2 className="text-5xl md:text-6xl tracking-widest text-yellow-400 mb-4 text-center">ANTRIAN BERIKUTNYA</h2>
                     {isLoading ? (
-                         <div className="flex justify-center items-center h-full">
+                         <div className="flex-grow flex justify-center items-center">
                             <Loader2 className="animate-spin h-12 w-12 text-yellow-400" />
                          </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 h-full">
-                            {/* Kolom 1 */}
+                        <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                             <ul className="space-y-2">
                                 {upNextCol1.map((person, index) => (
-                                    <li key={person.id} className="text-4xl bg-gray-700 p-3 rounded-xl flex items-center">
+                                    <li key={person.id} className="text-3xl lg:text-4xl bg-gray-700 p-3 rounded-xl flex items-center">
                                         <span className="text-yellow-400 mr-4 w-10 text-right">{index + 2}.</span>
                                         <span>{person.name.toUpperCase()}</span>
                                     </li>
                                 ))}
                             </ul>
-                            {/* Kolom 2 */}
                             <ul className="space-y-2">
                                 {upNextCol2.map((person, index) => (
-                                    <li key={person.id} className="text-4xl bg-gray-700 p-3 rounded-xl flex items-center">
+                                    <li key={person.id} className="text-3xl lg:text-4xl bg-gray-700 p-3 rounded-xl flex items-center">
                                         <span className="text-yellow-400 mr-4 w-10 text-right">{index + 9}.</span>
                                         <span>{person.name.toUpperCase()}</span>
                                     </li>
@@ -284,7 +277,7 @@ function CustomerDisplayView() {
                         </div>
                     )}
                      {upNext.length === 0 && !nowServing && !isLoading && (
-                        <p className="text-4xl text-gray-400 text-center mt-12">Antrian Masih Kosong</p>
+                        <p className="text-4xl text-gray-400 text-center mt-12 flex-grow flex items-center justify-center">Antrian Masih Kosong</p>
                     )}
                 </div>
             </main>
@@ -356,12 +349,13 @@ function AdminView() {
                 <header className="text-center mb-10">
                     <KotaklemaLogo />
                      <p className="font-['Bangers'] text-2xl text-zinc-800 tracking-wider mt-2">Admin KOTAKLEMA PhotoBox</p>
-                     <div className="flex justify-center gap-4 mt-4">
-                        <a href="/display" target="_blank" className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-gray-700 transition-colors">
-                            <Tv size={16} /> Buka Layar Antrian
+                     {/* REVISI: Mengubah gaya tombol agar sesuai dengan tema komik */}
+                     <div className="flex justify-center gap-4 mt-4 font-['Bangers'] tracking-wider">
+                        <a href="/display" target="_blank" className="inline-flex items-center gap-2 px-6 py-3 border-2 border-black rounded-lg text-lg bg-gray-800 text-white shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                            <Tv size={20} /> Buka Layar Antrian
                         </a>
-                         <a href="/join" target="_blank" className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-blue-500 transition-colors">
-                            <User size={16} /> Buka Form Pelanggan
+                         <a href="/join" target="_blank" className="inline-flex items-center gap-2 px-6 py-3 border-2 border-black rounded-lg text-lg bg-blue-600 text-white shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
+                            <User size={20} /> Buka Form Pelanggan
                         </a>
                      </div>
                 </header>
