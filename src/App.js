@@ -82,8 +82,8 @@ export default function App() {
     // MODIFIED: Fungsi ini sekarang memanggil Apps Script dengan metode POST
     const handleUpdateQueue = useCallback(async (action, payload) => {
         try {
-            // Menggunakan 'fetch' biasa untuk Apps Script
-            const response = await fetch(SCRIPT_URL, {
+            // FIX: Menghapus 'const response =' karena variabelnya tidak digunakan.
+            await fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action, payload }),
                 headers: {

@@ -1,7 +1,5 @@
 [build]
-  functions = "netlify/functions/"
+  command = "npm run build"
+  publish = "build"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# Kita tidak lagi memerlukan redirects ke functions
