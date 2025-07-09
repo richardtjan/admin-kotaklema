@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// FIX: Menambahkan kembali 'Copy' ke dalam import.
-import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2 } from 'lucide-react';
+// MODIFIKASI: Menambahkan ikon MessageSquarePlus untuk tombol balasan
+import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X, Play, Pause, CheckCircle, Copy, GripVertical, Trash2, MessageSquarePlus } from 'lucide-react';
 
 // --- Constants ---
 const TURN_DURATION_MINUTES = 7;
@@ -250,10 +250,10 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
         const targetIndex = allItems.findIndex(p => p.id === targetPerson.id);
 
         let newOrder;
-        if (draggedIndex < targetIndex) { // Drag ke bawah
+        if (draggedIndex < targetIndex) {
             const afterTarget = allItems[targetIndex + 1];
             newOrder = afterTarget ? (targetPerson.order + afterTarget.order) / 2 : targetPerson.order + 1000;
-        } else { // Drag ke atas
+        } else {
             const beforeTarget = allItems[targetIndex - 1];
             newOrder = beforeTarget ? (targetPerson.order + beforeTarget.order) / 2 : targetPerson.order / 2;
         }
@@ -262,22 +262,17 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
         setDraggedItem(null);
     };
 
-    // FIX: Logika notifikasi dipindahkan ke sini untuk aksi yang lebih cepat
+    // MODIFIKASI: Fungsi untuk aksi notifikasi awal
     const handleNotify = (person) => {
-        // 1. Buka WhatsApp
         const template = messageTemplates.initial;
         const message = template.text.replace(/\[NAME\]/g, person.name);
         window.open(`https://wa.me/${person.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
         
-        // 2. Update status dan timestamp untuk memulai timer
         onUpdateQueue('update', { 
             id: person.id, 
             newStatus: template.updatesStatusTo, 
             notifiedTimestamp: Date.now() 
         });
-
-        // 3. Buka modal konfirmasi
-        onOpenModal(person);
     };
 
     const getStatusIndicator = (status, notifiedTimestamp) => {
@@ -336,8 +331,19 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => handleDelete(person.id)} className="p-2 text-white bg-red-600 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Trash2 size={14} /></button>
-                                            {/* FIX: onClick sekarang memanggil handleNotify */}
-                                            <button onClick={() => handleNotify(person)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all"><Phone size={14} /></button>
+                                            
+                                            {/* MODIFIKASI: Tombol notifikasi dan tombol balasan dipisah */}
+                                            {person.status === 'waiting' && (
+                                                <button onClick={() => handleNotify(person)} className="p-2 text-white bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all" title="Kirim Notifikasi Panggilan">
+                                                    <Phone size={14} />
+                                                </button>
+                                            )}
+                                            {person.status === 'notified' && (
+                                                <button onClick={() => onOpenModal(person)} className="p-2 text-white bg-purple-500 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all" title="Tandai Balasan Pelanggan">
+                                                    <MessageSquarePlus size={14} />
+                                                </button>
+                                            )}
+
                                             <button onClick={() => handleFinishAndServe(person)} className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#000] hover:shadow-none transform hover:translate-x-0.5 hover:translate-y-0.5 transition-all">
                                                 <ChevronsRight size={14} /> LANJUT
                                             </button>
@@ -404,14 +410,13 @@ function ResponseTimer({ notifiedTimestamp }) {
     );
 }
 
-// FIX: Menyederhanakan modal dan mengubah alurnya
+// MODIFIKASI: Modal sekarang hanya untuk konfirmasi balasan
 function NotificationModal({ isOpen, onClose, data }) {
     const [view, setView] = useState('confirm');
     const [finalTemplate, setFinalTemplate] = useState(null);
     const [copySuccess, setCopySuccess] = useState('');
 
     useEffect(() => {
-        // Reset state setiap kali modal dibuka, agar selalu kembali ke tampilan awal
         if (isOpen) {
             setView('confirm');
             setFinalTemplate(null);
@@ -454,10 +459,9 @@ function NotificationModal({ isOpen, onClose, data }) {
             );
         }
 
-        // Tampilan default adalah 'confirm'
         return (
             <div className="text-center">
-                <p className="font-sans text-gray-600 mb-4">Pesan notifikasi telah dikirim. Tandai respon dari pelanggan di bawah ini.</p>
+                <p className="font-sans text-gray-600 mb-4">Tandai respon dari pelanggan di bawah ini.</p>
                 <div className="grid grid-cols-2 gap-4">
                     <button onClick={() => handleConfirmAction('yes')} className="w-full px-4 py-3 font-bold text-white bg-green-500 rounded-lg border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-none transform hover:translate-x-1 hover:translate-y-1 transition-all">
                         BALAS "YA"
