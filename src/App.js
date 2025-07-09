@@ -5,7 +5,7 @@ import { User, Clock, Users, Send, Loader2, AlertCircle, ChevronsRight, Phone, X
 // --- Constants ---
 const TURN_DURATION_MINUTES = 7;
 const TURN_DURATION_MS = TURN_DURATION_MINUTES * 60 * 1000;
-const RESPONSE_WAIT_MS = 3 * 60 * 1000;
+const RESPONSE_WAIT_MS = 2 * 60 * 1000;
 
 const SCRIPT_URL = process.env.REACT_APP_APPS_SCRIPT_URL;
 
@@ -35,9 +35,9 @@ const KotaklemaLogo = () => (
 );
 
 const messageTemplates = {
-    initial: { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 3 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' },
-    reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Kami tunggu kedatangannya di Photobooth.`, updatesStatusTo: 'confirmed' },
-    reply_no: { id: 'resp_no', title: 'Balasan untuk "TIDAK"', text: `Baik, Kak [NAME], terima kasih informasinya. Kami akan memberitahu Anda kembali jika sudah ada giliran yang tersedia.`, updatesStatusTo: 'waiting' }
+    initial: { id: 'cf1', title: 'Notifikasi Panggilan (Minta Konfirmasi)', text: `Hai Kak [NAME],\n\nGiliran Kakak sudah dekat! Mohon balas "YA" jika sudah siap menuju lokasi, atau "TIDAK" jika belum bisa.\n\nDitunggu konfirmasinya dalam 2 menit ke depan ya. :)\n\nMakasih banyak atas pengertiannya, Kak!`, updatesStatusTo: 'notified' },
+    reply_yes: { id: 'resp_yes', title: 'Balasan untuk "YA"', text: `Terima kasih atas konfirmasinya, Kak [NAME]! Mohon segera standby di Kotaklema yaa, agar giliran Kakak tidak terlewat. Kami tunggu kedatangannya di Kotaklema.`, updatesStatusTo: 'confirmed' },
+    reply_no: { id: 'resp_no', title: 'Balasan untuk "TIDAK"', text: `Baik, Kak [NAME], terima kasih informasinya. Kami akan memberitahu Kakak kembali jika sudah ada giliran yang tersedia.`, updatesStatusTo: 'waiting' }
 };
 
 // --- Main App Component ---
