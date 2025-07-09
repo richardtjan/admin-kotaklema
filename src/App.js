@@ -20,7 +20,8 @@ const KotaklemaLogo = ({ size = 'normal' }) => {
 
     return (
         <div className="flex flex-col items-center">
-            <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+            {/* FIX: Memperluas viewBox untuk memberi ruang pada shadow agar tidak terpotong */}
+            <svg width={svgWidth} height={svgHeight} viewBox={`-10 -10 ${svgWidth + 20} ${svgHeight + 20}`}>
                 <defs>
                     <style>
                         {`
@@ -157,7 +158,6 @@ function CustomerJoinView() {
                         <CheckCircle className="w-16 h-16 mx-auto text-green-600" />
                         <h2 className="text-3xl mt-4">BERHASIL!</h2>
                         <p className="font-sans mt-2">{submitStatus.message}</p>
-                        {/* REVISI: Mengganti pesan notifikasi */}
                         <p className="font-sans mt-2 text-sm">Nanti kami akan menghubungi kembali via WhatsApp.</p>
                         <a href="/display" className="mt-6 w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
                            <Tv className="h-6 w-6 mr-3" /> LIHAT LAYAR ANTRIAN
@@ -172,7 +172,6 @@ function CustomerJoinView() {
                         </div>
                         <div>
                             <label htmlFor="phone" className="block text-lg mb-2 tracking-wide">NOMOR WHATSAPP</label>
-                            {/* REVISI: Menggunakan input dengan format otomatis */}
                             <input type="tel" value={phone} onChange={handlePhoneChange} placeholder="62812..." className="block w-full bg-white border-2 border-black rounded-lg py-3 px-6 text-zinc-900 focus:outline-none focus:ring-4 focus:ring-orange-500/50 transition-all font-sans"/>
                         </div>
                         <button type="submit" disabled={isSubmitting} className="w-full flex items-center justify-center px-6 py-4 border-2 border-black rounded-lg font-bold text-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transform hover:translate-x-1 hover:translate-y-1 transition-all">
@@ -226,44 +225,66 @@ function CustomerDisplayView() {
     }, [fetchQueue]);
 
     const nowServing = queue.length > 0 ? queue[0] : null;
-    const upNext = queue.length > 1 ? queue.slice(1, 6) : [];
+    // REVISI: Mengambil 13 antrian berikutnya (nomor 2-14)
+    const upNext = queue.length > 1 ? queue.slice(1, 14) : []; 
+    
+    // REVISI: Membagi antrian berikutnya menjadi dua kolom
+    const upNextCol1 = upNext.slice(0, 7);
+    const upNextCol2 = upNext.slice(7, 13);
+
 
     return (
-        <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4 font-['Bangers']">
-            <header className="absolute top-8 text-center">
+        <div className="bg-gray-900 text-white min-h-screen w-full flex flex-col items-center p-6 font-['Bangers']">
+            {/* Header Section */}
+            <header className="w-full max-w-6xl text-center mb-6">
                 <KotaklemaLogo size="large" />
-                {/* REVISI: Memindahkan link Instagram ke header */}
-                <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
+                <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
                     <Instagram size={32} />
                     <span>@kotaklemaphoto</span>
                 </a>
             </header>
             
-            <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-8 mt-48 pt-24">
-                <div className="lg:w-2/5 bg-orange-500 text-black p-8 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
-                    <h2 className="text-6xl tracking-widest">SEKARANG GILIRAN</h2>
-                    <div className="text-9xl font-bold my-4 text-white" style={{ WebkitTextStroke: '4px black' }}>
+            <main className="w-full max-w-6xl flex-grow flex flex-col gap-6">
+                {/* Now Serving Section */}
+                <div className="bg-orange-500 text-black p-6 rounded-3xl border-8 border-black shadow-2xl flex flex-col justify-center items-center">
+                    <h2 className="text-5xl md:text-6xl tracking-widest">SEKARANG GILIRAN</h2>
+                    <div className="text-8xl md:text-9xl font-bold my-2 text-white" style={{ WebkitTextStroke: '4px black' }}>
                         {nowServing ? nowServing.name.toUpperCase() : '---'}
                     </div>
                     {nowServing && <TimerDisplay person={nowServing} />}
                 </div>
 
-                <div className="lg:w-3/5 bg-gray-800 p-8 rounded-3xl border-8 border-black shadow-2xl">
-                    <h2 className="text-6xl tracking-widest text-yellow-400 mb-6">ANTRIAN BERIKUTNYA</h2>
+                {/* Up Next Section */}
+                <div className="flex-grow bg-gray-800 p-6 rounded-3xl border-8 border-black shadow-2xl">
+                    <h2 className="text-5xl md:text-6xl tracking-widest text-yellow-400 mb-4 text-center">ANTRIAN BERIKUTNYA</h2>
                     {isLoading ? (
-                         <Loader2 className="animate-spin h-12 w-12 text-yellow-400" />
+                         <div className="flex justify-center items-center h-full">
+                            <Loader2 className="animate-spin h-12 w-12 text-yellow-400" />
+                         </div>
                     ) : (
-                        <ul className="space-y-4">
-                            {upNext.map((person, index) => (
-                                <li key={person.id} className="text-5xl bg-gray-700 p-4 rounded-xl flex items-center">
-                                    <span className="text-yellow-400 mr-4">{index + 2}.</span>
-                                    <span>{person.name.toUpperCase()}</span>
-                                </li>
-                            ))}
-                            {upNext.length === 0 && !nowServing && (
-                                <p className="text-4xl text-gray-400">Antrian Masih Kosong</p>
-                            )}
-                        </ul>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 h-full">
+                            {/* Kolom 1 */}
+                            <ul className="space-y-2">
+                                {upNextCol1.map((person, index) => (
+                                    <li key={person.id} className="text-4xl bg-gray-700 p-3 rounded-xl flex items-center">
+                                        <span className="text-yellow-400 mr-4 w-10 text-right">{index + 2}.</span>
+                                        <span>{person.name.toUpperCase()}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            {/* Kolom 2 */}
+                            <ul className="space-y-2">
+                                {upNextCol2.map((person, index) => (
+                                    <li key={person.id} className="text-4xl bg-gray-700 p-3 rounded-xl flex items-center">
+                                        <span className="text-yellow-400 mr-4 w-10 text-right">{index + 9}.</span>
+                                        <span>{person.name.toUpperCase()}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                     {upNext.length === 0 && !nowServing && !isLoading && (
+                        <p className="text-4xl text-gray-400 text-center mt-12">Antrian Masih Kosong</p>
                     )}
                 </div>
             </main>
