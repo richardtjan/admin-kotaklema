@@ -166,8 +166,8 @@ function CustomerJoinView() {
                         )}
                     </form>
                 )}
-                 {/* MODIFIKASI: Memindahkan link Instagram ke posisi yang lebih menonjol */}
-                <a href="https://www.instagram.com/kotaklemaphoto" target="_blank" rel="noopener noreferrer" className="mt-8 flex items-center justify-center gap-2 text-black hover:text-orange-600 transition-colors font-sans" title="Follow us on Instagram">
+                 {/* FIX: Menggunakan URL Instagram yang benar */}
+                <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="mt-8 flex items-center justify-center gap-2 text-black hover:text-orange-600 transition-colors font-sans" title="Follow us on Instagram">
                     <Instagram size={20} />
                     <span className="font-bold">@kotaklemaphoto</span>
                 </a>
@@ -245,9 +245,9 @@ function CustomerDisplayView() {
                 </div>
             </main>
             {error && <div className="absolute bottom-4 left-4 bg-red-500 text-white p-4 rounded-xl">{error}</div>}
-             {/* MODIFIKASI: Memindahkan link Instagram ke footer yang menonjol */}
+             {/* FIX: Menggunakan URL Instagram yang benar */}
             <footer className="absolute bottom-6 text-center w-full">
-                <a href="https://www.instagram.com/kotaklemaphoto" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
+                <a href="https://www.instagram.com/kotaklemaphoto?igsh=cWJrajFwdTNubm1l" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 text-white hover:text-orange-500 transition-colors text-3xl tracking-wider" title="Follow us on Instagram">
                     <Instagram size={32} />
                     <span>@kotaklemaphoto</span>
                 </a>
