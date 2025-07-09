@@ -133,6 +133,8 @@ function CustomerJoinView() {
                 <header className="text-center mb-6">
                     <KotaklemaLogo />
                 </header>
+                {/* FIX: Menambahkan ErrorDisplay untuk menggunakan state 'error' */}
+                {error && <ErrorDisplay message={error} />}
                 {submitStatus.type === 'success' ? (
                     <div className="text-center p-4 bg-green-100 text-green-800 rounded-lg border-2 border-green-800">
                         <h2 className="text-3xl">BERHASIL!</h2>
@@ -237,7 +239,99 @@ function CustomerDisplayView() {
     );
 }
 
-// FIX: Komponen ini dipindahkan ke atas agar bisa digunakan oleh AdminView
+// --- Admin View Component ---
+function AdminView() {
+    const [queue, setQueue] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalData, setModalData] = useState({ person: null, updateQueue: null });
+
+    const fetchQueue = useCallback(async () => {
+        setError(null);
+        try {
+            const response = await fetch(SCRIPT_URL);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            setQueue(data);
+        } catch (e) {
+            console.error("Fetch Queue Error:", e);
+            setError("Gagal memuat antrian dari Google Sheets.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!SCRIPT_URL) {
+            setError("URL Apps Script belum diatur. (REACT_APP_APPS_SCRIPT_URL)");
+            setIsLoading(false);
+            return;
+        }
+        fetchQueue();
+        const intervalId = setInterval(fetchQueue, 15000);
+        return () => clearInterval(intervalId);
+    }, [fetchQueue]);
+    
+    const handleUpdateQueue = useCallback(async (action, payload) => {
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action, payload }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            });
+            await fetchQueue();
+        } catch (error) {
+            console.error(`Error performing action ${action}:`, error);
+            setError(`Gagal melakukan aksi: ${action}.`);
+        }
+    }, [fetchQueue]);
+
+    const handleOpenModal = useCallback((person) => {
+        setModalData({ person, updateQueue: handleUpdateQueue });
+        setIsModalOpen(true);
+    }, [handleUpdateQueue]);
+
+    const nowServing = queue.length > 0 ? queue[0] : null;
+    const upNext = queue.length > 1 ? queue.slice(1) : [];
+
+    return (
+        <div className="bg-white text-zinc-800 min-h-screen font-['Bangers'] flex flex-col items-center p-4 sm:p-6 lg:p-8"
+            style={{ backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
+            <div className="w-full max-w-6xl mx-auto">
+                <header className="text-center mb-10">
+                    <KotaklemaLogo />
+                     <p className="font-['Bangers'] text-2xl text-zinc-800 tracking-wider mt-2">Admin KOTAKLEMA PhotoBox</p>
+                     <div className="flex justify-center gap-4 mt-4">
+                        <a href="/display" target="_blank" className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-gray-700 transition-colors">
+                            <Tv size={16} /> Buka Layar Antrian
+                        </a>
+                         <a href="/join" target="_blank" className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-blue-500 transition-colors">
+                            <User size={16} /> Buka Form Pelanggan
+                        </a>
+                     </div>
+                </header>
+                {error && <ErrorDisplay message={error} />}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center p-10 text-gray-500">
+                        <Loader2 className="animate-spin h-12 w-12 mb-4 text-orange-500" />
+                        <p className="text-2xl tracking-wider">LOADING...</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                        <div className="lg:col-span-2"><JoinQueueForm queue={queue} onUpdateQueue={handleUpdateQueue} /></div>
+                        <div className="lg:col-span-3"><QueueDisplay nowServing={nowServing} upNext={upNext} onUpdateQueue={handleUpdateQueue} onOpenModal={handleOpenModal} /></div>
+                    </div>
+                )}
+            </div>
+            <NotificationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} data={modalData} />
+        </div>
+    );
+}
+
+// --- Sisa komponen (JoinQueueForm, QueueDisplay, dll) ---
+// (Kode di bawah ini tidak perlu diubah)
+
 function JoinQueueForm({ queue, onUpdateQueue }) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -290,7 +384,6 @@ function JoinQueueForm({ queue, onUpdateQueue }) {
     );
 }
 
-// FIX: Komponen ini dipindahkan ke atas agar bisa digunakan oleh AdminView
 function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
     const [timeLeft, setTimeLeft] = useState(TURN_DURATION_MS);
     const [timerState, setTimerState] = useState('idle');
@@ -462,100 +555,6 @@ function QueueDisplay({ nowServing, upNext, onUpdateQueue, onOpenModal }) {
         </div>
     );
 }
-
-
-// --- Admin View Component ---
-function AdminView() {
-    const [queue, setQueue] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalData, setModalData] = useState({ person: null, updateQueue: null });
-
-    const fetchQueue = useCallback(async () => {
-        setError(null);
-        try {
-            const response = await fetch(SCRIPT_URL);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            setQueue(data);
-        } catch (e) {
-            console.error("Fetch Queue Error:", e);
-            setError("Gagal memuat antrian dari Google Sheets.");
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!SCRIPT_URL) {
-            setError("URL Apps Script belum diatur. (REACT_APP_APPS_SCRIPT_URL)");
-            setIsLoading(false);
-            return;
-        }
-        fetchQueue();
-        const intervalId = setInterval(fetchQueue, 15000);
-        return () => clearInterval(intervalId);
-    }, [fetchQueue]);
-    
-    const handleUpdateQueue = useCallback(async (action, payload) => {
-        try {
-            await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action, payload }),
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            });
-            await fetchQueue();
-        } catch (error) {
-            console.error(`Error performing action ${action}:`, error);
-            setError(`Gagal melakukan aksi: ${action}.`);
-        }
-    }, [fetchQueue]);
-
-    const handleOpenModal = useCallback((person) => {
-        setModalData({ person, updateQueue: handleUpdateQueue });
-        setIsModalOpen(true);
-    }, [handleUpdateQueue]);
-
-    const nowServing = queue.length > 0 ? queue[0] : null;
-    const upNext = queue.length > 1 ? queue.slice(1) : [];
-
-    return (
-        <div className="bg-white text-zinc-800 min-h-screen font-['Bangers'] flex flex-col items-center p-4 sm:p-6 lg:p-8"
-            style={{ backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
-            <div className="w-full max-w-6xl mx-auto">
-                <header className="text-center mb-10">
-                    <KotaklemaLogo />
-                     <p className="font-['Bangers'] text-2xl text-zinc-800 tracking-wider mt-2">Admin KOTAKLEMA PhotoBox</p>
-                     <div className="flex justify-center gap-4 mt-4">
-                        <a href="/display" target="_blank" className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-gray-700 transition-colors">
-                            <Tv size={16} /> Buka Layar Antrian
-                        </a>
-                         <a href="/join" target="_blank" className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-sans text-sm hover:bg-blue-500 transition-colors">
-                            <User size={16} /> Buka Form Pelanggan
-                        </a>
-                     </div>
-                </header>
-                {error && <ErrorDisplay message={error} />}
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center p-10 text-gray-500">
-                        <Loader2 className="animate-spin h-12 w-12 mb-4 text-orange-500" />
-                        <p className="text-2xl tracking-wider">LOADING...</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                        <div className="lg:col-span-2"><JoinQueueForm queue={queue} onUpdateQueue={handleUpdateQueue} /></div>
-                        <div className="lg:col-span-3"><QueueDisplay nowServing={nowServing} upNext={upNext} onUpdateQueue={handleUpdateQueue} onOpenModal={handleOpenModal} /></div>
-                    </div>
-                )}
-            </div>
-            <NotificationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} data={modalData} />
-        </div>
-    );
-}
-
-// --- Sisa komponen (Timer, Modal, dll) sama seperti versi sebelumnya ---
-// (Kode di bawah ini tidak perlu diubah)
 
 function TimerDisplay({ timeLeft }) {
     const minutes = Math.floor((timeLeft / 1000) / 60);
